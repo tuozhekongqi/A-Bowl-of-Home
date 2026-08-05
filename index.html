@@ -615,6 +615,7 @@
   .plan-sheet .ps-meal .pm2-dish .x.swap { color: #b98a52; padding: 4px 8px 4px 8px; }
   .plan-sheet .ps-meal .pm2-dish .x:active { transform: scale(.9); }
   .plan-sheet .ps-meal .pm2-dish .x-btns { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; }
+  .plan-sheet .ps-meal .pm2-dish .dish-ppl { font-size: 11px; color: var(--cinnabar); background: var(--card3); border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
   .plan-sheet .ps-shop { display: block; width: 100%; margin-top: 8px; background: var(--card3); color: var(--cinnabar); border: 1px solid #e8c9b8; border-radius: 10px; padding: 9px; font-size: 14px; font-weight: 700; cursor: pointer; }
   /* 加入食谱单弹窗 */
   .modal-mask { position: fixed; inset: 0; background: rgba(61,50,40,.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
@@ -1448,20 +1449,23 @@ function dishKey(name) {
   if (/羹|银耳|绿豆|红豆|莲子|雪梨|木瓜|桂圆|甜沫|面茶|油茶|灰豆子|糖水|嘎巴菜|粿汁|芋苗/.test(name)) return 'zhou';
   if (/杨枝甘露|西米露|芒果/.test(name)) return 'yangzhi';
   if (/酸梅汤|豆浆|奶茶|果汁|柠檬水|豆汁|牛奶|奶昔/.test(name)) return 'nai';
+  if (/汤包|灌汤包/.test(name)) return 'baozi';
   if (/茶叶蛋|卤蛋|虎皮蛋|虎皮鸡蛋/.test(name)) return 'jiandan';
   if (/茶/.test(name)) return 'cha';
-  if (/啤酒|酒/.test(name)) return 'jiu';
+  if (/^酒|酒$/.test(name)) return 'jiu';
   if (/羊肉串|烤串|串|烤韭菜|烤馒头|烤豆腐|烤茄子|烤玉米|烤生蚝|烤面筋/.test(name)) return 'kaochuan';
   if (/玉米面饼子/.test(name)) return 'bing';
   if (/粉蒸排骨/.test(name)) return 'paigu';
+  if (/肠粉/.test(name)) return 'baozi';
   if (/面|粉|米线|河粉|片儿川|饵丝|蚂蚁上树/.test(name)) return 'mian';
-  if (/粥|糊/.test(name)) return 'zhou';
+  if (/粥|糊/.test(name) && !/鳝糊/.test(name)) return 'zhou';
+  if (/煲仔饭/.test(name)) return 'fan';
   if (/关东煮|汤|煲|炖|锅仔|砂锅|炒肝|毛血旺|血旺|腌笃鲜/.test(name)) return 'tang';
   if (/包|小笼|灌汤|肠粉|锅贴|卷圈/.test(name)) return 'baozi';
   if (/饺/.test(name)) return 'jiaozi';
   if (/太平燕|扁肉|馄饨|抄手/.test(name)) return 'huntun';
   if (/烧梅|烧麦|烧卖|稍麦/.test(name)) return 'shaomai';
-  if (/馒头/.test(name)) return 'manlou';
+  if (/馒头/.test(name)) return 'mantou';
   if (/炒饭/.test(name)) return 'chaofan';
   if (/饭/.test(name)) return 'fan';
   if (/咸鱼蒸肉饼/.test(name)) return 'hongshaorou';
@@ -2886,6 +2890,7 @@ function renderDishContent(name) {
     <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
     ${panel('👨‍🍳 开始做菜', `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap"><a class="bili-btn bili-sm" href="${biliLink(name)}" onclick="return openBili(this)">📺 看视频教程</a><span style="font-size:11px;color:var(--muted)">没把握？先看视频再动手，成功率翻倍</span></div><div class="steps">${steps}</div>`)}
     <button class="speak-next" onclick="speakNextStep(false)">🔊 读下一步</button>
+    <div style="text-align:center;margin:12px 0 4px"><button class="finish-early" onclick="showFinishCard()" style="border:1.5px solid var(--gold);color:#8a6d3b;background:var(--card);border-radius:24px;padding:8px 20px;font-size:13.5px;cursor:pointer;font-family:inherit">✅ 我做完了，打分</button></div>
     <div class="finish-card" id="finishCard" style="display:none">
       <div class="t-label">做完了！给自己打个分吧（1-10）</div>
       <div class="score-opts">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<span class="score-num" onclick="score(${n})">${n}</span>`).join('')}</div>
@@ -2922,6 +2927,13 @@ function updateProgress(name) {
   const steps = document.querySelectorAll('.step');
   if (!bar || !steps.length) return;
   bar.style.width = Math.round(document.querySelectorAll('.step.done').length / steps.length * 100) + '%';
+}
+function showFinishCard() {
+  const card = document.getElementById('finishCard');
+  if (card) card.style.display = '';
+  const bar = document.getElementById('progressBar');
+  if (bar) bar.style.width = '100%';
+  if (typeof window.scrollTo === 'function') window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 function checkFinish(name) {
   const steps = document.querySelectorAll('.step');
@@ -3059,7 +3071,7 @@ function toggleFav(enc) {
 function renderFav() {
   const dishes = store.fav.filter(k => k.indexOf('dish:') === 0).map(k => k.slice(5));
   $app.innerHTML = topbar(['我的收藏'], '#/home') + `
-    ${banner('❤', '我的收藏', '收藏的都是心头好', '藏')}
+    ${banner('藏', '我的收藏', '收藏的都是心头好', '藏')}
     ${dishes.length ? '<div class="vlist">' + dishes.map(d => dishItem(d)).join('') + '</div>' : '<div class="empty">还没有收藏，去逛逛吧</div>'}`;
 }
 
@@ -3343,6 +3355,11 @@ function initDark() {
 }
 // ================= 冰箱配菜 & 推荐食谱 =================
 const INGRED_SYN = {
+  '葱花':'葱','葱姜':'葱','葱姜蒜':'葱','姜丝':'姜','姜末':'姜','姜片':'姜','生姜':'姜','老姜':'姜',
+  '蒜末':'蒜','蒜片':'蒜','蒜瓣':'蒜','蒜泥':'蒜','大蒜':'蒜','白胡椒粉':'白胡椒','虾皮':'虾','虾米':'虾','虾干':'虾',
+  '鸡爪':'鸡肉','猪肉丁':'猪肉','猪肉丝':'猪肉','猪肉片':'猪肉','猪肉馅':'猪肉','牛肉丸':'牛肉','牛肉馅':'牛肉',
+  '羊肉馅':'羊肉','羊排':'羊肉','油豆腐':'豆腐','豆腐皮':'豆腐','花生米':'花生','熟花生米':'花生','米酒':'酒酿','醪糟':'酒酿',
+  '香醋':'醋','陈醋':'醋','蒸鱼豉油':'生抽','黄酒':'料酒','花椒面':'花椒','辣椒粉':'辣椒面',
   西红柿: '番茄', 洋芋: '马铃薯', 马铃薯: '土豆', 土豆: '土豆',
   小葱: '葱', 大葱: '葱', 香葱: '葱', 蒜苗: '蒜苗', 青蒜: '蒜苗',
   里脊: '猪肉', 五花肉: '猪肉', 肉馅: '猪肉', 猪肉末: '猪肉', 瘦肉: '猪肉', 猪里脊: '猪肉', 猪腿肉: '猪肉',
@@ -3450,7 +3467,7 @@ function renderFridge() {
   const hist = JSON.parse(localStorage.getItem('fridgeHist') || '[]');
   $app.className = 'app';
   let html = topbar(['学着做菜', '冰箱配菜'], '#/home') + `
-    ${banner('🧊', '冰箱配菜', '看看冰箱里有什么，能做什么菜', '冰箱')}
+    ${banner('鲜', '冰箱配菜', '看看冰箱里有什么，能做什么菜', '鲜')}
     ${pantryHtml()}
     <div class="fridge-box">
       <input id="fridgeInput" value="${esc(q)}" placeholder="输入冰箱里的食材，用逗号隔开，如：鸡蛋,番茄,土豆" onkeydown="if(event.key==='Enter')fridgeGo()">
@@ -3985,7 +4002,7 @@ function renderMyPlans() {
           const label = { breakfast: '🌅 早餐', lunch: '☀️ 午餐', dinner: '🌙 晚餐', late: '🌌 夜宵' }[m];
           const list = p[m] || [];
           return `<div class="ps-meal"><span class="pm2-label">${label}</span>${list.length ? list.map(d =>
-            `<span class="pm2-dish" onclick="go('#/dish/${encodeURIComponent(d)}')">${d}<span class="x-btns"><span class="x swap" title="换一道" onclick="event.stopPropagation();swapPlanDish('${esc(name)}','${m}','${esc(d)}')">${swapIcon()}</span><span class="x" title="移除" onclick="event.stopPropagation();rmPlanDish('${esc(name)}','${m}','${esc(d)}')">✕</span></span></span>`).join('') : '<span style="font-size:12px;color:var(--muted)">—</span>'}</div>`;
+            `<span class="pm2-dish" onclick="go('#/dish/${encodeURIComponent(d)}')">${d}${(p.pplMap && p.pplMap[d]) ? `<span class="dish-ppl">×${p.pplMap[d]}人</span>` : ''}<span class="x-btns"><span class="x swap" title="换一道" onclick="event.stopPropagation();swapPlanDish('${esc(name)}','${m}','${esc(d)}')">${swapIcon()}</span><span class="x" title="移除" onclick="event.stopPropagation();rmPlanDish('${esc(name)}','${m}','${esc(d)}')">✕</span></span></span>`).join('') : '<span style="font-size:12px;color:var(--muted)">—</span>'}</div>`;
         }).join('')}
         <button class="ps-shop" onclick="planShopGo2('${esc(name)}')">🛒 生成采购清单</button>
         <button class="ps-shop" style="background:var(--card3);color:var(--cinnabar);border-color:var(--line2)" onclick="renewPlanConfirm('${esc(name)}')">📅 一键续下周（全换新菜）</button>
