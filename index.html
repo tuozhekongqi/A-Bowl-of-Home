@@ -3978,7 +3978,7 @@ function renderMyPlans() {
       const cnt = (p.breakfast || []).length + (p.lunch || []).length + (p.dinner || []).length + (p.late || []).length;
       html += `<div class="plan-sheet">
         <div class="ps-head"><span class="ps-name">📕 ${esc(name)} <span style="font-size:12px;color:#c9b8a0">${cnt} 道</span></span>
-        <span class="ps-del" onclick="delPlan('${esc(name)}')">✕ 删除</span></div>
+        <span class="ps-del" onclick="delPlanConfirm('${esc(name)}')">✕ 删除</span></div>
         ${['breakfast', 'lunch', 'dinner', 'late'].map(m => {
           const label = { breakfast: '🌅 早餐', lunch: '☀️ 午餐', dinner: '🌙 晚餐', late: '🌌 夜宵' }[m];
           const list = p[m] || [];
@@ -3986,7 +3986,7 @@ function renderMyPlans() {
             `<span class="pm2-dish" onclick="go('#/dish/${encodeURIComponent(d)}')">${d}<span class="x-btns"><span class="x swap" title="换一道" onclick="event.stopPropagation();swapPlanDish('${esc(name)}','${m}','${esc(d)}')">${swapIcon()}</span><span class="x" title="移除" onclick="event.stopPropagation();rmPlanDish('${esc(name)}','${m}','${esc(d)}')">✕</span></span></span>`).join('') : '<span style="font-size:12px;color:var(--muted)">—</span>'}</div>`;
         }).join('')}
         <button class="ps-shop" onclick="planShopGo2('${esc(name)}')">🛒 生成采购清单</button>
-        <button class="ps-shop" style="background:var(--card3);color:var(--cinnabar);border-color:var(--line2)" onclick="renewPlan('${esc(name)}')">📅 一键续下周（全换新菜）</button>
+        <button class="ps-shop" style="background:var(--card3);color:var(--cinnabar);border-color:var(--line2)" onclick="renewPlanConfirm('${esc(name)}')">📅 一键续下周（全换新菜）</button>
         <div id="shopResult_${names.indexOf(name)}"></div>
       </div>`;
     });
@@ -4138,8 +4138,20 @@ function swapPlanDish(name, meal, dish) {
   savePlans(plans);
   renderMyPlans();
 }
+function renewPlanConfirm(name) {
+  const box = document.createElement('div');
+  box.className = 'modal-mask';
+  box.innerHTML = `<div class="modal-box">
+    <div class="mb-title">📅 一键续下周</div>
+    <div style="font-size:13.5px;color:var(--ink-soft);margin:6px 0 12px;text-align:center">把「${esc(name)}」的所有菜换成新菜（手动加的也会换掉），确定吗？</div>
+    <div class="mb-actions">
+      <button class="mb-btn" onclick="this.closest('.modal-mask').remove()">取消</button>
+      <button class="mb-btn primary" onclick="this.closest('.modal-mask').remove();renewPlan('${esc(name)}')">确认续周</button>
+    </div></div>`;
+  document.body.appendChild(box);
+}
 function renewPlan(name) {
-  if (!confirm('把「' + name + '」的所有菜换成新菜（手动加的也会换掉）？')) return;
+  if (typeof confirm === 'function' && false) {}
   const plans = getPlans();
   const p = plans[name];
   if (!p) return;
