@@ -49,4 +49,7 @@
   add(fancy, '清蒸多宝鱼');     // 清淡 + 精致
   add(fancy, '白灼虾');         // 清淡 + 精致
   add(light, '云南汽锅鸡');     // 精致 + 清淡（汤清味鲜）
+
+  // 酸萝卜老鸭汤补挂（清淡）
+  add(LUNCH_NEEDS.find(n => n.id === 'qingdan').dishes, '酸萝卜老鸭汤');
 })();

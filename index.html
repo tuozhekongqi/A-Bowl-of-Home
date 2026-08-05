@@ -3067,6 +3067,7 @@ function renderFav() {
 const HOT_WORDS = ['土豆', '鸡', '鱼', '豆腐', '番茄', '鸡蛋', '排骨', '虾', '面', '汤', '粥', '甜品'];
 // 同义词/别名：搜索时自动扩展（用户可能搜的说法）
 const SEARCH_SYN = {
+  '猪脚':'猪蹄','芫荽':'香菜','竹笋':'笋','淮山':'山药','甘蓝':'白菜','豇豆':'豆角','凉瓜':'苦瓜','洋葱头':'洋葱','黄鳝':'鳝鱼','八爪鱼':'鱿鱼','豆泡':'豆腐','米醋':'醋','砂糖':'糖','绵白糖':'糖','角瓜':'西葫芦','尖椒':'辣椒','莲藕':'藕',
   '西红柿': '番茄', '马铃薯': '土豆', '洋芋': '土豆', '地瓜': '红薯', '番薯': '红薯', '红苕': '红薯',
   '云吞': '馄饨', '抄手': '馄饨', '元宵': '汤圆', '豆花': '豆腐脑', '千张': '豆皮',
   '西蓝花': '西兰花', '菜花': '花菜', '青瓜': '黄瓜', '通菜': '空心菜',
@@ -3165,6 +3166,7 @@ function searchDishes(kw) {
     if (qs.some(x => n.indexOf(x) >= 0)) { hits.push(n); return; }
     if (qs.some(x => (d.desc || '').indexOf(x) >= 0)) { hits.push(n); return; }
     if ((d.ingredients || []).some(ig => qs.some(x => (ig.n || '').indexOf(x) >= 0))) hits.push(n);
+    if ((d.steps || []).some(st => qs.some(x => (st.t || '').indexOf(x) >= 0))) hits.push(n);
   });
   // 需求/场景词：整个分类的菜
   needDishes(q).forEach(d => { if (hits.indexOf(d) < 0) hits.push(d); });
