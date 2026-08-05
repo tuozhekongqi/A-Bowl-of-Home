@@ -327,6 +327,9 @@
   .step .st { flex: 1; font-size: 15px; }
   .step .step-btns { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
   .step .step-img { width: 100%; max-height: 190px; object-fit: cover; border-radius: 9px; margin-bottom: 8px; border: 1px solid var(--line2); }
+  .bili-btn { display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid #5ba8d8; color: #3d7fa8; background: #f4fafd; border-radius: 24px; padding: 9px 18px; font-size: 14px; cursor: pointer; text-decoration: none; transition: all .15s; }
+  .bili-btn:hover { background: #e6f2fa; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(93, 168, 216, 0.25); }
+  .bili-sm { padding: 5px 12px; font-size: 12.5px; border-radius: 18px; }
   .dish-photo { position: relative; margin: 12px 2px 2px; border-radius: 14px; overflow: hidden; border: 1.5px solid var(--gold); box-shadow: 0 8px 24px rgba(61, 50, 40, 0.14); }
   .dish-photo img { width: 100%; display: block; aspect-ratio: 1 / 1; object-fit: cover; }
   .dish-photo .dp-tag { position: absolute; right: 8px; bottom: 8px; background: rgba(32, 28, 24, 0.55); color: #f5ecd8; font-size: 10.5px; border-radius: 6px; padding: 2px 8px; letter-spacing: 1px; }
@@ -2743,6 +2746,15 @@ let currentDishName = '';
 const DISH_PHOTOS = {};
 try { Object.assign(DISH_PHOTOS, window.PHOTO_MAP || {}); } catch (e) {}
 function dishPhoto(name) { return DISH_PHOTOS[name] || ''; }
+function biliLink(name) {
+  return 'https://search.bilibili.com/all?keyword=' + encodeURIComponent(name + ' 做法');
+}
+function openBili(el) {
+  var w = null;
+  try { w = window.open(el.href, '_blank'); } catch (e) {}
+  if (!w) { location.href = el.href; }  // 新窗口被拦截则当前页跳转
+  return false;
+}
 function dishTime(name) {
   const d = DISHES[name];
   if (!d || !d.steps) return 0;
@@ -2801,7 +2813,10 @@ function renderDishPortion(name) {
       <div class="dish-desc">${d.desc}</div>
       <div class="t-label">请按人数选择分量</div>
       ${[1, 2, 3, 4].map(n => `<div class="portion-opt${n === currentPortion ? ' active' : ''}" data-n="${n}" onclick="choosePortion(${n})">${n} 人份</div>`).join('')}
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap">
       <button class="start-btn" onclick="goDish('${encodeURIComponent(name)}')">开始学习 →</button>
+      <a class="bili-btn" href="${biliLink(name)}" onclick="return openBili(this)">📺 看视频教程</a>
+      </div>
     </div>`;
 }
 function choosePortion(n) {
@@ -2853,6 +2868,7 @@ function renderDishContent(name) {
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button class="fav-btn${isFav ? ' faved' : ''}" id="favBtn" onclick="toggleFav('${encodeURIComponent(name)}')">${isFav ? '♥ 已收藏' : '♡ 收藏'}</button>
         <button class="fav-btn" style="border-color:#e8cba0;color:#b98a52" onclick="addToPlanPrompt('${encodeURIComponent(name)}')">📋 加入食谱单</button>
+        <a class="fav-btn" style="border-color:#5ba8d8;color:#3d7fa8;text-decoration:none" href="${biliLink(name)}" onclick="return openBili(this)">📺 视频教程</a>
       </div>
     </div>
     ${reminderHtml}
@@ -2861,7 +2877,7 @@ function renderDishContent(name) {
     ${panel('🧺 回家先处理', ul(d.prep))}
     ${panel('💡 小贴士', `<p>${d.tips}</p>`)}
     <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
-    ${panel('👨‍🍳 开始做菜', `<div class="steps">${steps}</div>`)}
+    ${panel('👨‍🍳 开始做菜', `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap"><a class="bili-btn bili-sm" href="${biliLink(name)}" onclick="return openBili(this)">📺 看视频教程</a><span style="font-size:11px;color:var(--muted)">没把握？先看视频再动手，成功率翻倍</span></div><div class="steps">${steps}</div>`)}
     <button class="speak-next" onclick="speakNextStep(false)">🔊 读下一步</button>
     <div class="finish-card" id="finishCard" style="display:none">
       <div class="t-label">做完了！给自己打个分吧（1-10）</div>
