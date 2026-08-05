@@ -2888,10 +2888,10 @@ function renderDishContent(name) {
     ${panel('🧺 回家先处理', ul(d.prep))}
     ${panel('💡 小贴士', `<p>${d.tips}</p>`)}
     <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
-    ${panel('👨‍🍳 开始做菜', `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap"><a class="bili-btn bili-sm" href="${biliLink(name)}" onclick="return openBili(this)">📺 看视频教程</a><span style="font-size:11px;color:var(--muted)">没把握？先看视频再动手，成功率翻倍</span></div><div class="steps">${steps}</div>`)}
+    ${panel('👨‍🍳 开始做菜', `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap"><a class="bili-btn bili-sm" href="${biliLink(name)}" onclick="return openBili(this)">📺 看视频教程</a><span style="font-size:11px;color:var(--muted)">没把握？先看视频再动手，成功率翻倍</span></div><div style="font-size:12px;color:var(--ink-soft);background:var(--card3);border-radius:8px;padding:6px 10px;margin-bottom:10px">💡 做完一步点一下这步，会自动划掉 ✓（全部划完才能打分哦）</div><div class="steps">${steps}</div>`)}
     <button class="speak-next" onclick="speakNextStep(false)">🔊 读下一步</button>
-    <div style="text-align:center;margin:12px 0 4px"><button class="finish-early" onclick="showFinishCard()" style="border:1.5px solid var(--gold);color:#8a6d3b;background:var(--card);border-radius:24px;padding:8px 20px;font-size:13.5px;cursor:pointer;font-family:inherit">✅ 我做完了，打分</button></div>
     <div class="finish-card" id="finishCard" style="display:none">
+      <div style="text-align:center;margin:8px 0"><button class="poster-btn" onclick="genPoster()" style="border:1.5px solid var(--cinnabar);color:var(--cinnabar);background:var(--card);border-radius:24px;padding:8px 22px;font-size:14px;cursor:pointer;font-family:inherit">📸 生成美食海报（发朋友圈）</button></div>
       <div class="t-label">做完了！给自己打个分吧（1-10）</div>
       <div class="score-opts">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<span class="score-num" onclick="score(${n})">${n}</span>`).join('')}</div>
       <div class="score-remark" id="scoreRemark"></div>
@@ -2927,6 +2927,240 @@ function updateProgress(name) {
   const steps = document.querySelectorAll('.step');
   if (!bar || !steps.length) return;
   bar.style.width = Math.round(document.querySelectorAll('.step.done').length / steps.length * 100) + '%';
+}
+// ================= 美食海报生成 =================
+var POSTER_TAGS = [
+  '一粥一饭，皆是修行', '人间烟火气，最抚凡人心', '自己动手，饭都更香',
+  '今日份成就感 +1', '锅碗瓢盆，皆是热爱', '好好吃饭，认真生活',
+  '厨艺这门课，我及格了', '家的味道，自己也能做'
+];
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function genPoster() {
+  var name = currentDishName;
+  var d = DISHES[name];
+  if (!d) return;
+  var score = store.scores[name] || 0;
+  var counts = 0;
+  try { counts = JSON.parse(localStorage.getItem('counts') || '{}')[name] || 0; } catch (e) {}
+  var note = '';
+  try {
+    var rs = JSON.parse(localStorage.getItem('reminders') || '{}');
+    if (rs[name] && rs[name].length) note = String(rs[name][0].t || '');
+  } catch (e) {}
+  var W = 900, H = 1200;
+  var cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  var ctx = cv.getContext('2d');
+  // 背景宣纸
+  ctx.fillStyle = '#faf6ef';
+  ctx.fillRect(0, 0, W, H);
+  // 细金线框 + 四角
+  ctx.strokeStyle = 'rgba(184,134,11,.55)';
+  ctx.lineWidth = 3;
+  roundRectPath(ctx, 24, 24, W - 48, H - 48, 20);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(184,134,11,.25)';
+  ctx.lineWidth = 1;
+  roundRectPath(ctx, 36, 36, W - 72, H - 72, 14);
+  ctx.stroke();
+  // 顶部小字
+  ctx.fillStyle = 'rgba(61,50,40,.45)';
+  ctx.font = '26px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('厨 房 小 课 堂', W / 2, 92);
+  // 菜名
+  ctx.fillStyle = '#3d3228';
+  ctx.font = 'bold 72px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.fillText(name, W / 2, 178);
+  // 分隔金线
+  ctx.strokeStyle = 'rgba(184,134,11,.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - 90, 210);
+  ctx.lineTo(W / 2 + 90, 210);
+  ctx.stroke();
+  // 菜图（圆角矩形裁剪）
+  var img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = function () {
+    drawPosterCore(ctx, cv, W, H, img, name, d, score, counts, note);
+  };
+  img.onerror = function () {
+    drawPosterCore(ctx, cv, W, H, null, name, d, score, counts, note);
+  };
+  var src = dishPhoto(name);
+  if (src) { img.src = src; } else { img.onerror(); }
+}
+var POSTER_BGS = ['imgs/poster_bg_1.webp', 'imgs/poster_bg_2.webp', 'imgs/poster_bg_3.webp'];
+function drawPosterCore(ctx, cv, W, H, img, name, d, score, counts, note) {
+  // AI 高级底图（异步加载，用画中画方式：先画底图再叠文字）
+  var bg = new Image();
+  bg.crossOrigin = 'anonymous';
+  var bgDone = function () {
+    if (bg.width > 0) {
+      var s2 = Math.max(W / bg.width, H / bg.height);
+      var dw = bg.width * s2, dh = bg.height * s2;
+      ctx.drawImage(bg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    } else {
+      ctx.fillStyle = '#faf6ef';
+      ctx.fillRect(0, 0, W, H);
+    }
+    drawPosterText(ctx, cv, W, H, img, name, d, score, counts, note);
+  };
+  bg.onload = bgDone;
+  bg.onerror = bgDone;
+  bg.src = POSTER_BGS[(counts || 0) % POSTER_BGS.length];
+}
+function drawPosterText(ctx, cv, W, H, img, name, d, score, counts, note) {
+  // 细金线框
+  ctx.strokeStyle = 'rgba(184,134,11,.4)';
+  ctx.lineWidth = 1.5;
+  roundRectPath(ctx, 30, 30, W - 60, H - 60, 18);
+  ctx.stroke();
+  // 顶部徽标 + 日期
+  ctx.fillStyle = 'rgba(61,50,40,.55)';
+  ctx.font = '22px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.textAlign = 'center';
+  var today = new Date();
+  var dateStr = today.getFullYear() + '.' + String(today.getMonth() + 1).padStart(2, '0') + '.' + String(today.getDate()).padStart(2, '0');
+  ctx.fillText('厨 房 小 课 堂 · 学 做 饭', W / 2, 84);
+  ctx.font = '19px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.fillStyle = 'rgba(184,134,11,.75)';
+  ctx.fillText(dateStr + '  ·  ' + (d.where || ''), W / 2, 116);
+  // 菜名（大字，字距）
+  ctx.fillStyle = 'rgba(61,50,40,.92)';
+  var nameSize = name.length > 5 ? 54 : 66;
+  ctx.font = 'bold ' + nameSize + 'px "Kaiti SC","STKaiti","KaiTi",serif';
+  if (name.length <= 4) {
+    var spaced = name.split('').join('  ');
+    ctx.fillText(spaced, W / 2, 186);
+  } else {
+    ctx.fillText(name, W / 2, 186);
+  }
+  // 菜图（小一些、大留白、无框、底部渐隐）
+  var iw = W - 340, ih = iw * 0.85;
+  var ix = (W - iw) / 2, iy = 206;
+  ctx.save();
+  roundRectPath(ctx, ix, iy, iw, ih, 16);
+  ctx.clip();
+  if (img) {
+    var s3 = Math.max(iw / img.width, ih / img.height);
+    var dw = img.width * s3, dh = img.height * s3;
+    ctx.drawImage(img, ix + (iw - dw) / 2, iy + (ih - dh) / 2, dw, dh);
+    // 底部渐隐到背景
+    var fg = ctx.createLinearGradient(0, iy + ih - 90, 0, iy + ih);
+    fg.addColorStop(0, 'rgba(250,246,239,0)');
+    fg.addColorStop(1, 'rgba(250,246,239,.9)');
+    ctx.fillStyle = fg;
+    ctx.fillRect(ix, iy + ih - 90, iw, 90);
+  } else {
+    ctx.fillStyle = 'rgba(240,232,216,.6)';
+    ctx.fillRect(ix, iy, iw, ih);
+    ctx.fillStyle = 'rgba(61,50,40,.4)';
+    ctx.font = 'bold 80px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText(name.slice(0, 1), W / 2, iy + ih / 2 + 28);
+  }
+  ctx.restore();
+  // 信息区（留白充足）
+  var y = iy + ih + 40;
+  var mins = 0;
+  if (d && d.steps) d.steps.forEach(function (st) { if (typeof st.time === 'number') mins += st.time; });
+  mins = Math.round(mins / 60);
+  var stepsN = d && d.steps ? d.steps.length : 0;
+  var ingsN = d && d.ingredients ? d.ingredients.length : 0;
+  ctx.font = '20px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.fillStyle = 'rgba(61,50,40,.5)';
+  ctx.fillText('⏱ ' + (mins || '—') + ' 分钟   ·   ' + stepsN + ' 步   ·   ' + ingsN + ' 样食材', W / 2, y);
+  y += 44;
+  if (score > 0) {
+    ctx.fillStyle = 'rgba(176,58,46,.9)';
+    ctx.font = 'bold 52px "Songti SC",serif';
+    var starTxt = '';
+    for (var i = 0; i < Math.min(5, Math.round(score / 2)); i++) starTxt += '★';
+    ctx.font = 'bold 34px "Songti SC",serif';
+    ctx.fillText(starTxt || '★', W / 2, y);
+    y += 12;
+    ctx.font = 'bold 58px "Songti SC",serif';
+    ctx.fillText(score, W / 2, y + 44);
+    ctx.font = '22px "Kaiti SC",serif';
+    ctx.fillStyle = 'rgba(61,50,40,.5)';
+    ctx.fillText('分', W / 2 + 44, y + 34);
+    y += 72;
+  }
+  if (note) {
+    ctx.fillStyle = 'rgba(122,106,88,.85)';
+    ctx.font = '26px "Kaiti SC","STKaiti","KaiTi",serif';
+    var noteShort = note.length > 18 ? note.slice(0, 18) + '…' : note;
+    ctx.fillText('「' + noteShort + '」', W / 2, y);
+    y += 44;
+  }
+  ctx.fillStyle = 'rgba(61,50,40,.45)';
+  ctx.font = '21px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.fillText('第 ' + (counts || 1) + ' 次做这道菜', W / 2, y + 4);
+  // 竖排小字（右侧）
+  ctx.fillStyle = 'rgba(61,50,40,.22)';
+  ctx.font = '20px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.textAlign = 'left';
+  var vx = W - 56, vy = H - 290;
+  '一粥一饭当思来之不易'.split('').forEach(function (ch, idx) {
+    ctx.fillText(ch, vx, vy + idx * 29);
+  });
+  ctx.textAlign = 'center';
+  // 底部印章
+  var cx = W / 2, cy = H - 158, rr = 46;
+  ctx.save();
+  ctx.fillStyle = 'rgba(176,58,46,.92)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fdf6ec';
+  ctx.font = 'bold 40px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('厨', cx, cy + 14);
+  ctx.restore();
+  // 底部文艺句
+  ctx.fillStyle = 'rgba(184,134,11,.8)';
+  ctx.font = '26px "Kaiti SC","STKaiti","KaiTi",serif';
+  ctx.fillText(POSTER_TAGS[(counts || 1) % POSTER_TAGS.length], W / 2, H - 70);
+  // 弹窗展示
+  var dataUrl = null;
+  try { dataUrl = cv.toDataURL('image/png'); } catch (e) { dataUrl = null; }
+  if (!dataUrl) {
+    var photoHtml = img ? '<img src="' + dishPhoto(name) + '" style="width:100%;border-radius:12px;border:1px solid var(--line2)" alt="">' : '';
+    var scoreHtml = score > 0 ? '<div style="font-size:30px;color:var(--cinnabar);margin:10px 0 4px">' + (function(){ var st=''; for (var i=0;i<Math.min(5,Math.round(score/2));i++) st+='★'; return st || '★'; })() + ' ' + score + ' 分</div>' : '';
+    var noteHtml = note ? '<div style="font-size:15px;color:var(--ink-soft);margin:4px 0">「' + note + '」</div>' : '';
+    var mask2 = document.createElement('div');
+    mask2.className = 'modal-mask';
+    mask2.innerHTML = '<div class="modal-box" style="max-width:420px;padding:0;overflow:hidden">' +
+      '<div style="background:#faf6ef;padding:20px 18px;text-align:center;border:6px solid rgba(184,134,11,.4);border-radius:14px">' +
+      '<div style="font-size:13px;color:rgba(61,50,40,.5);letter-spacing:6px;margin-bottom:8px">厨 房 小 课 堂</div>' +
+      '<div style="font-size:30px;font-family:&quot;Kaiti SC&quot;,&quot;STKaiti&quot;,&quot;KaiTi&quot;,serif;font-weight:700;color:#3d3228;margin-bottom:12px">' + name + '</div>' +
+      photoHtml + scoreHtml + noteHtml +
+      '<div style="font-size:13px;color:rgba(61,50,40,.55);margin:10px 0 4px">第 ' + (counts || 1) + ' 次做这道菜 · 加油！</div>' +
+      '<div style="display:inline-flex;align-items:center;gap:8px;margin-top:6px"><span style="width:34px;height:34px;border-radius:50%;background:var(--cinnabar);color:#fdf6ec;font-size:20px;display:inline-flex;align-items:center;justify-content:center;font-family:&quot;Kaiti SC&quot;,serif">厨</span><span style="font-size:14px;color:rgba(184,134,11,.85);font-family:&quot;Kaiti SC&quot;,serif">' + POSTER_TAGS[(counts || 1) % POSTER_TAGS.length] + '</span></div>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px 0 2px">📱 手机：截图保存即可发朋友圈</div>' +
+      '<div class="mb-actions"><button class="mb-btn" onclick="this.closest(\'.modal-mask\').remove()">关闭</button></div></div>';
+    document.body.appendChild(mask2);
+    return;
+  }
+  var mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  mask.innerHTML = '<div class="modal-box" style="max-width:420px">' +
+    '<div class="mb-title">📸 你的美食海报</div>' +
+    '<img src="' + dataUrl + '" style="width:100%;border-radius:10px;border:1px solid var(--line2)" alt="美食海报">' +
+    '<div style="font-size:12px;color:var(--muted);text-align:center;margin:8px 0 4px">手机：长按图片保存 → 发朋友圈<br>电脑：右键另存为，或点下方下载</div>' +
+    '<div class="mb-actions"><button class="mb-btn" onclick="this.closest(\'.modal-mask\').remove()">关闭</button>' +
+    '<a class="mb-btn primary" style="text-decoration:none;text-align:center;display:inline-block" href="' + dataUrl + '" download="' + name + '_美食海报.png">⬇ 下载海报</a></div></div>';
+  document.body.appendChild(mask);
 }
 function showFinishCard() {
   const card = document.getElementById('finishCard');
