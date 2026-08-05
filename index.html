@@ -53,7 +53,7 @@
     line-height: 1.65;
   }
   .app { max-width: 640px; margin: 0 auto; padding: 0 34px 70px; position: relative; z-index: 1; }
-  @media (max-width: 520px) { .app { padding: 0 18px 70px; } }
+  @media (max-width: 520px) { .app { padding: 0 18px 70px; } input, select, textarea { font-size: 16px !important; } }
 
   /* ---------- 搜索 ---------- */
   .search-box { flex: 1; min-width: 0; margin-left: 10px; position: relative; display: flex; align-items: center; gap: 6px; }
@@ -434,6 +434,7 @@
   .lucky-card .motto { font-size: 12.5px; color: var(--ink-soft); letter-spacing: 2px; }
   .lucky-box { text-align: center; padding: 30px 18px; }
   .lucky-icon { font-size: 74px; line-height: 1; }
+  .lucky-icon svg { width: 74px; height: 74px; }
   .lucky-name { font-size: 28px; font-weight: 700; font-family: "Kaiti SC", "STKaiti", "KaiTi", serif; margin: 12px 0 4px; letter-spacing: 3px; }
   .lucky-tag { display: inline-block; background: var(--cinnabar); color: var(--card2); font-size: 12px; padding: 2px 14px; border-radius: 14px; letter-spacing: 2px; }
   .lucky-desc { color: var(--ink-soft); font-size: 14px; line-height: 1.8; max-width: 440px; margin: 12px auto 22px; }
@@ -457,8 +458,8 @@
     0% { transform: translateX(-120%) skewX(-18deg); }
     100% { transform: translateX(240%) skewX(-18deg); }
   }
-  .hero-chop, .seal-hero, .banner .seal { position: relative; overflow: hidden; }
-  .hero-chop::after, .seal-hero::after, .banner .seal::after {
+  .seal-hero, .banner .seal { position: relative; overflow: hidden; }
+  .seal-hero::after, .banner .seal::after {
     content: ''; position: absolute; top: 0; bottom: 0; width: 34%;
     background: linear-gradient(105deg, transparent, rgba(255, 214, 120, 0.45), transparent);
     animation: shineSweep 3.2s ease-in-out infinite;
@@ -495,7 +496,8 @@
   @keyframes popCheck {
     0% { transform: scale(0); } 60% { transform: scale(1.35); } 100% { transform: scale(1); }
   }
-  .step.done::after { content: '✓'; position: absolute; right: 46px; top: 50%; transform: translateY(-50%); color: #2f7d4f; font-weight: 900; font-size: 16px; animation: popCheck .4s ease; }
+  .step.done::after { content: '✓'; position: absolute; right: 104px; top: 50%; transform: translateY(-50%); color: #2f7d4f; font-weight: 900; font-size: 16px; animation: popCheck .4s ease; }
+  .steps .step.done::after { right: 12px; }
   .step { position: relative; }
   /* 主按钮朱红渐变 */
   .start-btn, .plan-go, .search-btn, .fridge-btn, .mb-btn.primary {
@@ -533,10 +535,13 @@
   .medal-progress i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #e0b84e, #b8860b); animation: growBar .8s ease both; }
   @keyframes growBar { from { width: 0; } }
   /* 计时条质感 */
-  .timer-bar { border: 1px solid var(--line2); border-radius: 12px; padding: 8px 12px; margin: 10px 2px; background: linear-gradient(180deg, rgba(184, 134, 11, 0.06), rgba(184, 134, 11, 0.02)); }
+  .timer-bar { border: 1px solid var(--line2); border-radius: 12px; padding: 8px 12px; margin: 10px 2px; background: linear-gradient(180deg, rgba(184, 134, 11, 0.06), rgba(184, 134, 11, 0.02)); color: var(--ink); }
+  .timer-bar .t-label { color: var(--ink-soft); }
+  .timer-bar .t-time { color: var(--ink); }
   .timer-bar .t-time { font-variant-numeric: tabular-nums; letter-spacing: 1px; }
     /* ---------- 计划三卡 ---------- */
-  .plan-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 2px 2px; }
+  .plan-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 16px 2px 2px; }
+  .plan-card { min-width: 0; }
   .plan-card { background: var(--card); border: 1px solid var(--line2); border-radius: 12px; padding: 8px 3px 7px; text-align: center; cursor: pointer; transition: transform .15s; }
   .plan-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(61,50,40,0.12); border-color: var(--cinnabar); }
   .plan-card:active { transform: scale(.94); }
@@ -564,7 +569,7 @@
   .fitem .fi-meta { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
   .fitem .fi-meta b { color: var(--cinnabar); font-weight: 600; }
   .fitem .fi-arrow { margin-left: auto; color: var(--muted); }
-  .add-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--line2); border-radius: 50%; color: #b98a52; font-size: 13px; cursor: pointer; margin-left: 6px; flex-shrink: 0; background: var(--card); }
+  .add-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border: 1px solid var(--line2); border-radius: 50%; color: #b98a52; font-size: 16px; cursor: pointer; margin-left: 6px; flex-shrink: 0; background: var(--card); }
   .add-btn:active { transform: scale(.9); }
   /* ---------- 推荐食谱 ---------- */
   .plan-step { margin: 16px 2px; }
