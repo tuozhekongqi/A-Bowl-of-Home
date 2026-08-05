@@ -2793,6 +2793,8 @@ function fromLabel(u) {
   if (u.indexOf('#/learn/breakfast') === 0) return ['早餐', '#/learn/breakfast'];
   if (u.indexOf('#/learn/lunch') === 0) return ['午餐晚餐', '#/learn/lunch'];
   if (u.indexOf('#/learn/late') === 0) return ['夜宵', '#/learn/late'];
+  if (u.indexOf('#/growth') === 0) return ['厨神成长', '#/growth'];
+  if (u.indexOf('#/firstaid') === 0) return ['翻车急救站', '#/firstaid'];
   return null;
 }
 function renderDishPortion(name) {
@@ -2988,10 +2990,11 @@ function stopTimer() {
 
 // ---- 评分（1-10） ----
 function score(n) {
+  const hadScore = !!store.scores[currentDishName];
   store.scores = Object.assign({}, store.scores, { [currentDishName]: n });
   try {
     const c = JSON.parse(localStorage.getItem('counts') || '{}');
-    c[currentDishName] = (c[currentDishName] || 0) + 1;
+    if (!hadScore) c[currentDishName] = (c[currentDishName] || 0) + 1;
     localStorage.setItem('counts', JSON.stringify(c));
   } catch (e) {}
   showScore(n);
@@ -3747,7 +3750,7 @@ function renderPlan() {
       <div class="plan-opt" data-v="4">4</div>
       <div class="plan-opt" data-v="5">自定义</div>
     </div>
-    <div class="plan-opts" id="pPplCus" style="margin-top:6px">
+    <div class="plan-opts" id="pPplCus" style="margin-top:6px;display:none">
       <input id="pPplInput" type="number" min="5" max="30" value="6" placeholder="自定义人数" style="width:120px;border:1px solid var(--line2);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;background:var(--card)">
     </div></div>`;
   if (mode === 'days') {
@@ -3761,7 +3764,7 @@ function renderPlan() {
         <div class="plan-opt" data-v="6">6</div>
         <div class="plan-opt" data-v="cus">自定义</div>
       </div>
-      <div class="plan-opts" id="pDaysCus" style="margin-top:6px">
+      <div class="plan-opts" id="pDaysCus" style="margin-top:6px;display:none">
         <input id="pDaysCustom" type="number" min="1" max="14" value="7" placeholder="自定义天数" style="width:120px;border:1px solid var(--line2);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;background:var(--card)">
       </div></div>`;
   }
@@ -4100,6 +4103,19 @@ function npConfirm() {
   go('#/myplans');
 }
 function npClose() { const np = window.__np; if (np && np.mask) { np.mask.remove(); window.__np = null; } }
+function delPlanConfirm(name) {
+  const plans = getPlans();
+  const box = document.createElement('div');
+  box.className = 'modal-mask';
+  box.innerHTML = `<div class="modal-box">
+    <div class="mb-title">🗑 删除食谱单</div>
+    <div style="font-size:13.5px;color:var(--ink-soft);margin:6px 0 12px;text-align:center">确定删除「${esc(name)}」吗？共 ${(plans[name] ? (plans[name].breakfast || []).length + (plans[name].lunch || []).length + (plans[name].dinner || []).length + (plans[name].late || []).length : 0)} 道菜，删除后不可恢复。</div>
+    <div class="mb-actions">
+      <button class="mb-btn" onclick="this.closest('.modal-mask').remove()">取消</button>
+      <button class="mb-btn primary" onclick="this.closest('.modal-mask').remove();delPlan('${esc(name)}')">确认删除</button>
+    </div></div>`;
+  document.body.appendChild(box);
+}
 function delPlan(name) {
   if (!confirm('删除食谱单「' + name + '」？')) return;
   const plans = getPlans();
@@ -4270,6 +4286,12 @@ function stepText(i) {
   return String(d.steps[i].t).replace(/\(\d+分钟?\)|（\d+分钟?）/g, '').trim();
 }
 function speakStep(i) {
+  const btn = document.querySelector('.speak-btn[data-i="' + i + '"]');
+  if (btn && btn.classList.contains('speaking')) {
+    stopSpeak();
+    document.querySelectorAll('.speak-btn').forEach(b => { b.classList.remove('speaking'); b.textContent = '🔊'; });
+    return;
+  }
   const t = stepText(i);
   if (!t) return;
   speak(t);
@@ -4293,6 +4315,7 @@ function speakNextStep(withPrefix) {
 
 // ================= 路由 =================
 function render() {
+  if (!location.hash.startsWith('#/dish/')) portionChosen = false;
   const r = parseRoute();
   const top = r[0] || 'home';
   if (top !== 'dish') {
