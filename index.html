@@ -405,6 +405,16 @@
 
   .badge { display: inline-block; background: var(--cinnabar); color: var(--card2); font-size: 11px; padding: 1px 10px; border-radius: 12px; vertical-align: middle; letter-spacing: 1px; }
   .empty { text-align: center; color: var(--ink-soft); padding: 46px 0; font-size: 14.5px; }
+  .fav-tab { border: 1px solid var(--line2); border-radius: 16px; padding: 5px 12px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; background: var(--card); }
+  .fav-tab.on { border-color: var(--cinnabar); color: var(--cinnabar); background: var(--card3); font-weight: 700; }
+  .tabbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; z-index: 40; display: flex; width: 100%; max-width: 640px; background: rgba(250, 246, 239, .93); backdrop-filter: blur(10px); border-top: 1px solid var(--line2); padding: 6px 0 calc(6px + env(safe-area-inset-bottom)); }
+  .tab-item { flex: 1; text-align: center; padding: 2px 0 4px; cursor: pointer; opacity: .55; transition: opacity .2s; }
+  .tab-item.on { opacity: 1; }
+  .tab-item.on .tab-lb { color: var(--cinnabar); font-weight: 700; }
+  .tab-ic { font-size: 19px; line-height: 1.2; }
+  .tab-lb { font-size: 10.5px; color: var(--ink-soft); margin-top: 1px; }
+  body { padding-bottom: 58px; }
+  .timer-bar { bottom: 66px !important; }
   .fade-in { animation: fadeIn 0.3s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .foot-deco { text-align: center; font-size: 11px; letter-spacing: 8px; color: rgba(184, 134, 11, 0.45); margin-top: 26px; }
@@ -2755,6 +2765,137 @@ let currentDishName = '';
 const DISH_PHOTOS = {};
 try { Object.assign(DISH_PHOTOS, window.PHOTO_MAP || {}); } catch (e) {}
 function dishPhoto(name) { return DISH_PHOTOS[name] || ''; }
+function relatedDishes(name) {
+  const d = DISHES[name];
+  if (!d) return [];
+  const ings = (d.ingredients || []).map(function (g) { return normIng(g.n); });
+  const tag = dishTag(name);
+  const scored = [];
+  Object.keys(DISHES).forEach(function (n) {
+    if (n === name) return;
+    const dd = DISHES[n];
+    let s2 = 0;
+    (dd.ingredients || []).forEach(function (g) { if (ings.indexOf(normIng(g.n)) >= 0) s2 += 2; });
+    if (dishTag(n) === tag) s2 += 1;
+    if (s2 >= 2) scored.push([n, s2]);
+  });
+  scored.sort(function (a, b) { return b[1] - a[1]; });
+  return scored.slice(0, 6).map(function (x) { return x[0]; });
+}
+function dishSkills(name) {
+  const d = DISHES[name];
+  if (!d) return [];
+  const text = (d.desc || '') + (d.steps || []).map(function (s) { return s.t; }).join('') + (d.ingredients || []).map(function (g) { return g.n; }).join('');
+  const found = [];
+  Object.keys(SKILL_CONTENT || {}).forEach(function (k) {
+    if (text.indexOf(k) >= 0) found.push(k);
+  });
+  return found.slice(0, 3);
+}
+function dishMissing(name) {
+  const d = DISHES[name];
+  if (!d) return [];
+  const pantry = getPantry().map(function (it) { return it.n; });
+  const miss = [];
+  (d.ingredients || []).forEach(function (g) {
+    const nn = normIng(g.n);
+    const have = pantry.some(function (pn) { return pn.indexOf(nn) >= 0 || nn.indexOf(pn) >= 0; });
+    if (!have && nn !== '盐' && nn !== '糖' && nn !== '油' && nn !== '生抽' && nn !== '老抽' && nn !== '醋' && nn !== '料酒' && nn !== '淀粉' && nn !== '鸡精' && nn !== '味精') miss.push(g.n);
+  });
+  return miss.slice(0, 5);
+}
+function cookStreak() {
+  try {
+    const cl = JSON.parse(localStorage.getItem('cookLog') || '{}');
+    const days = Object.keys(cl).sort().reverse();
+    let streak = 0;
+    const d = new Date();
+    for (let i = 0; i < days.length; i++) {
+      const day = days[i];
+      const dd = new Date(day);
+      const expect = new Date(d.getTime() - streak * 86400000);
+      if (dd.getFullYear() === expect.getFullYear() && dd.getMonth() === expect.getMonth() && dd.getDate() === expect.getDate()) {
+        streak++;
+      } else if (i === 0 && (d.getTime() - dd.getTime()) > 2 * 86400000) {
+        break;
+      } else if (i > 0) break;
+    }
+    return streak;
+  } catch (e) { return 0; }
+}
+function cookCalHtml() {
+  try {
+    const cl = JSON.parse(localStorage.getItem('cookLog') || '{}');
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    const startDow = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    let cells = '';
+    for (let i = 0; i < startDow; i++) cells += '<div style="width:30px;height:30px"></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      const n = (cl[key] || []).length;
+      const today = d === now.getDate();
+      const bg = n === 0 ? 'var(--card3)' : n <= 1 ? 'rgba(184,134,11,.3)' : n <= 2 ? 'rgba(176,58,46,.5)' : 'var(--cinnabar)';
+      cells += '<div title="' + key + ' 做了' + n + '道" style="width:30px;height:30px;border-radius:8px;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:11px;color:' + (n ? '#fff' : 'var(--muted)') + (today ? ';border:2px solid var(--gold)' : '') + '">' + (n || '') + '</div>';
+    }
+    return '<div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;width:100%">📅 本月做饭日历（色越深做得越多）</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;max-width:290px">' + cells + '</div>';
+  } catch (e) { return ''; }
+}
+function getFavFolders() {
+  try {
+    const f = JSON.parse(localStorage.getItem('favFolders') || 'null');
+    if (f && typeof f === 'object') return f;
+    if (store.fav && store.fav.length) {
+      const m = { '默认收藏': store.fav.slice() };
+      localStorage.setItem('favFolders', JSON.stringify(m));
+      return m;
+    }
+    return { '默认收藏': [] };
+  } catch (e) { return { '默认收藏': [] }; }
+}
+function saveFavFolders(f) { localStorage.setItem('favFolders', JSON.stringify(f)); }
+function curFavFolder() { try { return localStorage.getItem('curFavFolder') || '默认收藏'; } catch (e) { return '默认收藏'; } }
+function getPrefs() { try { return JSON.parse(localStorage.getItem('prefs') || '{}'); } catch (e) { return {}; } }
+function savePrefs(p) { localStorage.setItem('prefs', JSON.stringify(p)); }
+function isSpicyDish(name, d) {
+  const n = name + (d && d.desc ? d.desc : '');
+  if (/辣|椒|麻婆|麻辣|香辣|剁椒|泡椒|藤椒|火锅/.test(n)) return true;
+  if (d && d.ingredients) return d.ingredients.some(g => /辣椒|花椒|麻椒|剁椒|泡椒|小米辣|辣椒油|辣椒面/.test(g.n || ''));
+  return false;
+}
+function dishAvoided(name, d, prefs) {
+  const avoid = prefs.avoid || [];
+  if (!avoid.length || !d) return false;
+  return avoid.some(a => (d.ingredients || []).some(g => (g.n || '').indexOf(a) >= 0) || name.indexOf(a) >= 0 || (d.desc || '').indexOf(a) >= 0);
+}
+function prefsOk(name) {
+  const p = getPrefs();
+  if (p.noSpicy && isSpicyDish(name, DISHES[name])) return false;
+  if (dishAvoided(name, DISHES[name], p)) return false;
+  return true;
+}
+function prefsModal() {
+  const p = getPrefs();
+  const box = document.createElement('div');
+  box.className = 'modal-mask';
+  box.innerHTML = '<div class="modal-box"><div class="mb-title">😋 口味偏好</div>' +
+    '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">设置后，搜索/推荐/随机/冰箱配菜都会自动避开</div>' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:14px"><input type="checkbox" id="prefNoSpicy" ' + (p.noSpicy ? 'checked' : '') + ' style="width:17px;height:17px;accent-color:var(--cinnabar)"><label for="prefNoSpicy">不吃辣（避开辣椒/花椒/剁椒类菜品）</label></div>' +
+    '<div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px">忌口食材（逗号分隔，如：香菜,芹菜）：</div>' +
+    '<input id="prefAvoid" value="' + ((p.avoid || []).join(',')) + '" placeholder="香菜,芹菜,羊肉…" style="width:100%;border:1px solid var(--line2);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit;background:var(--card);margin-bottom:12px">' +
+    '<div class="mb-actions"><button class="mb-btn" onclick="this.closest(\'.modal-mask\').remove()">取消</button>' +
+    '<button class="mb-btn primary" onclick="savePrefsModal()">保存</button></div></div>';
+  document.body.appendChild(box);
+}
+function savePrefsModal() {
+  const noSpicy = document.getElementById('prefNoSpicy') ? document.getElementById('prefNoSpicy').checked : false;
+  const avoid = (document.getElementById('prefAvoid') ? document.getElementById('prefAvoid').value : '').split(/[,，]/).map(function (x) { return x.trim(); }).filter(Boolean);
+  savePrefs({ noSpicy: noSpicy, avoid: avoid });
+  document.querySelectorAll('.modal-mask').forEach(function (m) { m.remove(); });
+  render();
+  toast('✅ 偏好已保存，之后推荐都会避开');
+}
 function biliLink(name) {
   return 'https://search.bilibili.com/all?keyword=' + encodeURIComponent(name + ' 做法');
 }
@@ -2804,6 +2945,7 @@ function fromLabel(u) {
 function renderDishPortion(name) {
   const d = DISHES[name];
   const isFav = store.fav.indexOf('dish:' + name) >= 0;
+  const missNow = dishMissing(name);
   let backUrl = '#/learn/lunch', backLabel = d.scene;
   try {
     const from = sessionStorage.getItem('fromRoute') || '';
@@ -2815,6 +2957,7 @@ function renderDishPortion(name) {
     ${dishPhoto(name) ? `<div class="dish-photo"><img src="${dishPhoto(name)}" alt="${esc(name)}" loading="lazy"></div>` : ''}
     <div class="dish-meta" style="display:flex;gap:8px;justify-content:center;margin:10px 0 2px;flex-wrap:wrap">
       <span style="font-size:12px;background:#fdf1ec;color:var(--cinnabar);border-radius:8px;padding:3px 10px">⏱ 预计 ${dishTimeText(dishTime(name))}</span>
+      ${missNow.length ? `<div style="margin-top:8px;font-size:12px;color:var(--cinnabar);background:var(--card3);border-radius:8px;padding:5px 10px">🧊 你冰箱缺：${missNow.join('、')}（点「买食材」加入购物清单）</div>` : `<div style="margin-top:8px;font-size:12px;color:var(--green);background:var(--card3);border-radius:8px;padding:5px 10px">🧊 冰箱食材基本齐了，直接开做！</div>`}
       <span style="font-size:12px;background:#f6f0e2;color:#8a6d3b;border-radius:8px;padding:3px 10px">🍳 ${d.steps ? d.steps.length : 0} 个步骤</span>
       <span style="font-size:12px;background:#f0f5ee;color:#4a7c4f;border-radius:8px;padding:3px 10px">🥢 ${d.ingredients ? d.ingredients.length : 0} 样食材</span>
       <span style="font-size:12px;background:#f3edf7;color:#7a5a9e;border-radius:8px;padding:3px 10px">🔥 做过 ${(function () { try { return (JSON.parse(localStorage.getItem('counts') || '{}')[name] || 0); } catch (e) { return 0; } })()} 次</span>
@@ -2879,6 +3022,7 @@ function renderDishContent(name) {
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button class="fav-btn${isFav ? ' faved' : ''}" id="favBtn" onclick="toggleFav('${encodeURIComponent(name)}')">${isFav ? '♥ 已收藏' : '♡ 收藏'}</button>
         <button class="fav-btn" style="border-color:#e8cba0;color:#b98a52" onclick="addToPlanPrompt('${encodeURIComponent(name)}')">📋 加入食谱单</button>
+        <button class="fav-btn" style="border-color:#e8cba0;color:#b98a52" onclick="genShareCard('${encodeURIComponent(name)}')">🃏 分享菜谱</button>
         <a class="fav-btn" style="border-color:#5ba8d8;color:#3d7fa8;text-decoration:none" href="${biliLink(name)}" onclick="return openBili(this)">📺 视频教程</a>
       </div>
     </div>
@@ -2888,6 +3032,8 @@ function renderDishContent(name) {
     ${panel('🧺 回家先处理', ul(d.prep))}
     ${panel('💡 小贴士', `<p>${d.tips}</p>`)}
     <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    ${(function () { const rl = relatedDishes(name); if (!rl.length) return ''; return panel('🥢 换着花样吃', `<div style="display:flex;gap:6px;flex-wrap:wrap">${rl.map(function (rn) { return `<span class="pm-dish" onclick="go('#/dish/${encodeURIComponent(rn)}')">${rn}</span>`; }).join('')}</div>`); })()}
+    ${(function () { const sk = dishSkills(name); if (!sk.length) return ''; return `<div style="font-size:12px;color:var(--muted);margin:4px 0 8px;text-align:center">🔪 这道菜用到：${sk.map(function (k) { return `<a href="#/skills/${encodeURIComponent(k)}" style="color:var(--cinnabar)">${k}</a>`; }).join(' · ')}</div>`; })()}
     ${panel('👨‍🍳 开始做菜', `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap"><a class="bili-btn bili-sm" href="${biliLink(name)}" onclick="return openBili(this)">📺 看视频教程</a><span style="font-size:11px;color:var(--muted)">没把握？先看视频再动手，成功率翻倍</span></div><div style="font-size:12px;color:var(--ink-soft);background:var(--card3);border-radius:8px;padding:6px 10px;margin-bottom:10px">💡 做完一步点一下这步，会自动划掉 ✓（全部划完才能打分哦）</div><div class="steps">${steps}</div>`)}
     <button class="speak-next" onclick="speakNextStep(false)">🔊 读下一步</button>
     <div class="finish-card" id="finishCard" style="display:none">
@@ -2942,6 +3088,13 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+var SHARE_MODE = false;
+function genShareCard(name) {
+  currentDishName = name;
+  SHARE_MODE = true;
+  genPoster();
+  SHARE_MODE = false;
 }
 function genPoster() {
   var name = currentDishName;
@@ -3080,12 +3233,11 @@ function drawPosterText(ctx, cv, W, H, img, name, d, score, counts, note) {
   ctx.fillStyle = 'rgba(61,50,40,.5)';
   ctx.fillText('⏱ ' + (mins || '—') + ' 分钟   ·   ' + stepsN + ' 步   ·   ' + ingsN + ' 样食材', W / 2, y);
   y += 44;
-  if (score > 0) {
+  if (!SHARE_MODE && score > 0) {
     ctx.fillStyle = 'rgba(176,58,46,.9)';
-    ctx.font = 'bold 52px "Songti SC",serif';
+    ctx.font = 'bold 34px "Songti SC",serif';
     var starTxt = '';
     for (var i = 0; i < Math.min(5, Math.round(score / 2)); i++) starTxt += '★';
-    ctx.font = 'bold 34px "Songti SC",serif';
     ctx.fillText(starTxt || '★', W / 2, y);
     y += 12;
     ctx.font = 'bold 58px "Songti SC",serif';
@@ -3095,16 +3247,22 @@ function drawPosterText(ctx, cv, W, H, img, name, d, score, counts, note) {
     ctx.fillText('分', W / 2 + 44, y + 34);
     y += 72;
   }
-  if (note) {
+  if (!SHARE_MODE && note) {
     ctx.fillStyle = 'rgba(122,106,88,.85)';
     ctx.font = '26px "Kaiti SC","STKaiti","KaiTi",serif';
     var noteShort = note.length > 18 ? note.slice(0, 18) + '…' : note;
     ctx.fillText('「' + noteShort + '」', W / 2, y);
     y += 44;
   }
-  ctx.fillStyle = 'rgba(61,50,40,.45)';
-  ctx.font = '21px "Kaiti SC","STKaiti","KaiTi",serif';
-  ctx.fillText('第 ' + (counts || 1) + ' 次做这道菜', W / 2, y + 4);
+  if (!SHARE_MODE) {
+    ctx.fillStyle = 'rgba(61,50,40,.45)';
+    ctx.font = '21px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('第 ' + (counts || 1) + ' 次做这道菜', W / 2, y + 4);
+  } else {
+    ctx.fillStyle = 'rgba(176,58,46,.8)';
+    ctx.font = 'bold 27px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('朋友，一起做这道？', W / 2, y + 8);
+  }
   // 竖排小字（右侧）
   ctx.fillStyle = 'rgba(61,50,40,.22)';
   ctx.font = '20px "Kaiti SC","STKaiti","KaiTi",serif';
@@ -3237,6 +3395,14 @@ function stopTimer() {
 // ---- 评分（1-10） ----
 function score(n) {
   const hadScore = !!store.scores[currentDishName];
+  try {
+    const cl = JSON.parse(localStorage.getItem('cookLog') || '{}');
+    const today = new Date();
+    const key = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    if (!cl[key]) cl[key] = [];
+    if (cl[key].indexOf(currentDishName) < 0) cl[key].push(currentDishName);
+    localStorage.setItem('cookLog', JSON.stringify(cl));
+  } catch (e) {}
   store.scores = Object.assign({}, store.scores, { [currentDishName]: n });
   try {
     const c = JSON.parse(localStorage.getItem('counts') || '{}');
@@ -3288,25 +3454,75 @@ function delReminder(enc, i) {
 }
 
 // ---- 收藏 ----
-function toggleFav(enc) {
+function favFolderModal(enc) {
   const name = decodeURIComponent(enc);
-  const key = 'dish:' + name;
-  const fav = store.fav;
-  const i = fav.indexOf(key);
-  if (i >= 0) fav.splice(i, 1); else fav.push(key);
-  store.fav = fav;
-  const btn = document.getElementById('favBtn');
-  if (btn) {
-    const nowFav = i < 0;
-    btn.classList.toggle('faved', nowFav);
-    btn.textContent = nowFav ? '♥ 已收藏' : '♡ 收藏';
+  const f = getFavFolders();
+  let inAny = false;
+  Object.keys(f).forEach(function (k) { if (f[k].indexOf('dish:' + name) >= 0) inAny = true; });
+  if (inAny) {
+    // 已收藏 → 移除（从所有夹）
+    Object.keys(f).forEach(function (k) { const i = f[k].indexOf('dish:' + name); if (i >= 0) f[k].splice(i, 1); });
+    saveFavFolders(f);
+    toast('已取消收藏');
+    render();
+    return;
   }
+  const box = document.createElement('div');
+  box.className = 'modal-mask';
+  const folderBtns = Object.keys(f).map(function (k) {
+    return '<div style="border:1px solid var(--line2);border-radius:10px;padding:9px 12px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:8px" onclick="favToFolder(\'' + k + '\',\'' + name + '\')">📁 <span style="flex:1">' + k + '</span><span style="font-size:11px;color:var(--muted)">' + f[k].length + ' 道</span></div>';
+  }).join('');
+  box.innerHTML = '<div class="modal-box"><div class="mb-title">⭐ 收藏到哪个夹子？</div>' + folderBtns +
+    '<div style="display:flex;gap:6px;margin-top:8px"><input id="newFolderName" placeholder="新夹子名" style="flex:1;border:1px solid var(--line2);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;background:var(--card)"><button class="mb-btn primary" onclick="favNewFolder(\'' + name + '\')">新建</button></div></div>';
+  document.body.appendChild(box);
+}
+function favToFolder(folder, name) {
+  const f = getFavFolders();
+  if (!f[folder]) f[folder] = [];
+  if (f[folder].indexOf('dish:' + name) < 0) f[folder].push('dish:' + name);
+  Object.keys(f).forEach(function (k) { if (k !== folder) { const i = f[k].indexOf('dish:' + name); if (i >= 0) f[k].splice(i, 1); } });
+  saveFavFolders(f);
+  localStorage.setItem('curFavFolder', folder);
+  document.querySelectorAll('.modal-mask').forEach(function (m) { m.remove(); });
+  toast('⭐ 已收藏到「' + folder + '」');
+  render();
+}
+function favNewFolder(name) {
+  const v = (document.getElementById('newFolderName') ? document.getElementById('newFolderName').value : '').trim();
+  if (!v) return;
+  favToFolder(v, name);
+}
+function toggleFav(enc) {
+  favFolderModal(enc);
 }
 function renderFav() {
-  const dishes = store.fav.filter(k => k.indexOf('dish:') === 0).map(k => k.slice(5));
+  const f = getFavFolders();
+  const cur = curFavFolder();
+  const keys = Object.keys(f);
+  const dishes = (f[cur] || []).filter(k => k.indexOf('dish:') === 0).map(k => k.slice(5));
+  const tabs = keys.map(function (k) {
+    return `<span class="fav-tab${k === cur ? ' on' : ''}" onclick="go('#/fav/' + encodeURIComponent('${k}'))">📁 ${k} (${f[k].length})</span>`;
+  }).join('');
   $app.innerHTML = topbar(['我的收藏'], '#/home') + `
     ${banner('藏', '我的收藏', '收藏的都是心头好', '藏')}
-    ${dishes.length ? '<div class="vlist">' + dishes.map(d => dishItem(d)).join('') + '</div>' : '<div class="empty">还没有收藏，去逛逛吧</div>'}`;
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">${tabs}<span class="fav-tab" onclick="favNewFolderBox()">＋ 新建夹</span></div>
+    ${dishes.length ? '<div class="vlist">' + dishes.map(d => dishItem(d)).join('') + '</div>' : '<div class="empty">这个夹子还是空的，去逛逛吧</div>'}`;
+}
+function favNewFolderBox() {
+  const box = document.createElement('div');
+  box.className = 'modal-mask';
+  box.innerHTML = '<div class="modal-box"><div class="mb-title">📁 新建收藏夹</div><input id="newFolderName" placeholder="夹子名，如：请客硬菜" style="width:100%;border:1px solid var(--line2);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit;background:var(--card);margin:4px 0 10px"><div class="mb-actions"><button class="mb-btn" onclick="this.closest(\'.modal-mask\').remove()">取消</button><button class="mb-btn primary" onclick="favNewFolderOnly()">创建</button></div></div>';
+  document.body.appendChild(box);
+}
+function favNewFolderOnly() {
+  const v = (document.getElementById('newFolderName') ? document.getElementById('newFolderName').value : '').trim();
+  if (!v) return;
+  const f = getFavFolders();
+  if (!f[v]) f[v] = [];
+  saveFavFolders(f);
+  localStorage.setItem('curFavFolder', v);
+  document.querySelectorAll('.modal-mask').forEach(function (m) { m.remove(); });
+  render();
 }
 
 // ================= 搜索 =================
@@ -3349,10 +3565,6 @@ function needDishes(q) {
   return out;
 }
 let searchTimer = null;
-function searchLive(v) {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => searchGo(v), 280);
-}
 function searchGo(v) {
   const q = String(v || '').trim();
   if (!q) { if (location.hash.indexOf('#/search') === 0) go('#/home'); return; }
@@ -3416,7 +3628,7 @@ function searchDishes(kw) {
   });
   // 需求/场景词：整个分类的菜
   needDishes(q).forEach(d => { if (hits.indexOf(d) < 0) hits.push(d); });
-  return hits;
+  return hits.filter(prefsOk);
 }
 function searchSkills(kw) {
   const q = String(kw || '').trim();
@@ -3528,6 +3740,8 @@ function pickLucky(mode) {
   else if (h >= 10 && h < 15) { pool = lunchAll(); tag = '午餐'; }
   else if (h >= 15 && h < 21) { pool = lunchAll(); tag = '晚餐'; }
   else { pool = lateAll(); tag = '夜宵'; }
+  pool = pool.filter(prefsOk);
+  if (!pool.length) pool = ['番茄炒蛋'];
   if (mode === 'new') {
     // 学新菜：排除做过的（有评分记录的）
     const done = Object.keys(store.scores);
@@ -3649,7 +3863,17 @@ function pantryLeft(it) {
 }
 function pantryHtml() {
   const list = getPantry();
-  if (!list.length) return '';
+  if (!list.length) {
+    return `<div class="plan-day"><div class="pd-title" style="display:flex;align-items:center;justify-content:space-between">🧊 我的冰箱 <span style="font-size:11px;color:var(--muted);font-weight:400">录入食材后自动算保质期，临期提醒</span><button class="bili-btn bili-sm" style="margin:0" onclick="prefsModal()">😋 口味偏好</button></div>
+    <div style="font-size:12.5px;color:var(--muted);margin:2px 0 8px">冰箱还是空的～先放点食材进来：</div>
+    <div style="display:flex;gap:6px;margin-top:4px">
+      <input id="pantryName" placeholder="食材名，如：番茄" style="flex:1;border:1px solid var(--line2);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;background:var(--card)">
+      <select id="pantryExp" style="border:1px solid var(--line2);border-radius:8px;padding:6px;font-size:13px;font-family:inherit;background:var(--card)">
+        <option value="1">1天</option><option value="2">2天</option><option value="3" selected>3天</option><option value="5">5天</option><option value="7">7天</option><option value="14">14天</option><option value="30">30天</option>
+      </select>
+      <button class="fridge-btn" style="padding:0 14px;font-size:13px" onclick="pantryAdd()">放入冰箱</button>
+    </div></div>`;
+  }
   const rows = list.map((it, i) => {
     const left = pantryLeft(it);
     const cls = left <= 0 ? '危险' : left <= 2 ? '临期' : 'ok';
@@ -3665,7 +3889,7 @@ function pantryHtml() {
     const color = pantryLeft(it.n) <= 0 ? 'var(--cinnabar)' : '#c98a1b';
     return `<div style="margin-top:6px;font-size:12.5px;color:${color}">⚠️ ${esc(it.n)}${pantryLeft(it.n) <= 0 ? '已过期' : '快到期了'}！可以做：${picks || '（搜不到合适的，先吃掉或做汤）'}</div>`;
   }).join('');
-  return `<div class="plan-day"><div class="pd-title">🧊 我的冰箱 <span style="font-size:11px;color:var(--muted);font-weight:400">点食材填入搜索，✕ 移除</span></div>
+  return `<div class="plan-day"><div class="pd-title" style="display:flex;align-items:center;justify-content:space-between">🧊 我的冰箱 <span style="font-size:11px;color:var(--muted);font-weight:400">点食材填入搜索，✕ 移除</span><button class="bili-btn bili-sm" style="margin:0" onclick="prefsModal()">😋 口味偏好</button></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">${rows}</div>
     <div style="display:flex;gap:6px;margin-top:8px">
       <input id="pantryName" placeholder="食材名，如：番茄" style="flex:1;border:1px solid var(--line2);border-radius:8px;padding:6px 10px;font-size:13px;font-family:inherit;background:var(--card)">
@@ -3783,7 +4007,8 @@ function lunchPools() {
   return { all: all, meat: meat, veg: veg, soup: soup, tofu: tofu };
 }
 function mealPick(pool, n, used, avoid) {
-  const avail = pool.filter(x => !used.has(x) && !avoid.has(x)).sort(() => Math.random() - 0.5);
+  const avail = pool.filter(x => !used.has(x) && !avoid.has(x) && prefsOk(x)).sort(() => Math.random() - 0.5);
+  let _fb = avail.length ? null : pool.filter(x => !used.has(x) && !avoid.has(x));
   const out = [];
   for (const x of avail) { if (out.length >= n) break; out.push(x); used.add(x); }
   return out;
@@ -3979,6 +4204,19 @@ function restorePlanState() {
 }
 function renderPlan() {
   const mode = parseRoute()[1] || '';
+  setTimeout(function () {
+    try {
+      const cfg = JSON.parse(sessionStorage.getItem('planCfg') || 'null');
+      if (!cfg) return;
+      const pick = function (sel, v) {
+        const el = document.querySelector(sel + ' .plan-opt[data-v="' + v + '"]');
+        if (el) { document.querySelectorAll(sel + ' .plan-opt').forEach(function (o) { o.classList.remove('on'); }); el.classList.add('on'); }
+      };
+      if (cfg.mode) pick('#pMode', cfg.mode);
+      if (cfg.ppl) pick('#pPpl', cfg.ppl);
+      if (cfg.days) pick('#pDays', cfg.days);
+    } catch (e2) {}
+  }, 60);
   $app.className = 'app';
   let html = topbar(['学着做菜', '推荐食谱'], '#/home') + `
     ${banner('📅', '推荐食谱', '一顿饭或几天的计划，附采购清单', '食谱计划')}
@@ -4035,6 +4273,12 @@ function renderPlan() {
   });
 }
 function planGo() {
+  try {
+    const m = document.querySelector('#pMode .plan-opt.on');
+    const p = document.querySelector('#pPpl .plan-opt.on');
+    const d = document.querySelector('#pDays .plan-opt.on');
+    sessionStorage.setItem('planCfg', JSON.stringify({ mode: m ? m.dataset.v : 'once', ppl: p ? p.dataset.v : '2', days: d ? d.dataset.v : '1' }));
+  } catch (e) {}
   const mode = parseRoute()[1] || '';
   const pplEl = document.querySelector('#pPpl .plan-opt.sel');
   let ppl = pplEl ? parseInt(pplEl.dataset.v) : 2;
@@ -4130,9 +4374,72 @@ function planShopGo() {
   const r = planShopping(dishes, ppl);
   const el = document.getElementById('shopResult');
   el.innerHTML = `<div class="shop-list"><div class="sl-title">🛒 采购清单（按 ${ppl >= 5 ? '5人以上' : ppl + '人'} 份量）<span style="font-size:11px;color:#c9b8a0;font-weight:400"> · 点一下划掉已买的</span></div>
-    ${Object.entries(r.cats).map(([c, items]) => `<div class="shop-cat"><div class="sc-label">${c}</div><div class="sc-items">${items.map(it => `<span class="sc-item" onclick="this.classList.toggle('bought')">${it.name}</span>`).join('')}</div></div>`).join('')}
-    <button class="plan-go" style="margin-top:12px" onclick="printShop()">🖨️ 打印清单</button></div>`;
+    ${Object.entries(r.cats).map(([c, items]) => `<div class="shop-cat"><div class="sc-label">${c}</div><div class="sc-items">${items.map(it => `<span class="sc-item" onclick="this.classList.toggle('bought');saveShopTick(this)">${it.name}</span>`).join('')}</div></div>`).join('')}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="plan-go" style="flex:1;min-width:120px" onclick="shopWriteBack()">🛒 已购回写冰箱</button>
+      <button class="plan-go" style="flex:1;min-width:120px;background:var(--card3);color:var(--cinnabar);border-color:var(--line2)" onclick="copyShopText()">📤 复制清单</button>
+      <button class="plan-go" style="flex:1;min-width:120px;background:var(--card3);color:var(--ink-soft);border-color:var(--line2)" onclick="printShop()">🖨️ 打印</button>
+    </div></div>`;
   savePlanState();
+  restoreShopState();
+}
+function saveShopTick(el) {
+  try {
+    const saved = JSON.parse(localStorage.getItem('shoppingList') || 'null');
+    const items = saved && saved.items ? saved.items : [];
+    const label = el.textContent.trim();
+    const found = items.filter(function (i) { return i.n === label; });
+    const bought = el.classList.contains('bought');
+    if (found.length) { found[0].bought = bought; }
+    else { items.push({ n: label, bought: bought }); }
+    localStorage.setItem('shoppingList', JSON.stringify({ items: items, date: new Date().toISOString().slice(0, 10) }));
+  } catch (e) {}
+}
+function copyShopText() {
+  const cats = [...document.querySelectorAll('.shop-cat')];
+  const lines = cats.map(function (c) {
+    const title = c.querySelector('.sc-label') ? c.querySelector('.sc-label').textContent : '';
+    const its = [...c.querySelectorAll('.sc-item')].map(function (it) { return (it.classList.contains('bought') ? '✅ ' : '☐ ') + it.textContent.trim(); }).join('  ');
+    return title + '：' + its;
+  });
+  const txt = '🛒 本周采购清单（厨房小课堂）\n' + lines.join('\n');
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(function () { toast('✅ 清单已复制，去微信粘贴吧'); }, function () { fallbackCopy(txt); }); }
+    else fallbackCopy(txt);
+  } catch (e) { fallbackCopy(txt); }
+}
+function fallbackCopy(txt) {
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('✅ 清单已复制'); } catch (e) { toast('复制失败，请手动截图'); }
+  ta.remove();
+}
+function restoreShopState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('shoppingList') || 'null');
+    if (!saved || !saved.items) return;
+    const boughtMap = {};
+    saved.items.forEach(function (i) { if (i.bought) boughtMap[i.n] = true; });
+    document.querySelectorAll('.sc-item').forEach(function (el) {
+      if (boughtMap[el.textContent.trim()]) el.classList.add('bought');
+    });
+  } catch (e) {}
+}
+function shopWriteBack() {
+  const items = [];
+  document.querySelectorAll('.sc-item.bought').forEach(function (el) {
+    const label = el.textContent.trim();
+    if (label) items.push(label);
+  });
+  if (!items.length) { toast('先把买到的食材打勾 ☑️'); return; }
+  items.forEach(function (n) {
+    const nn = n.replace(/[约\d.]+$/, '').trim();
+    const p = getPantry();
+    p.push({ n: nn, bought: new Date().toISOString().slice(0, 10), exp: 3 });
+    savePantry(p);
+  });
+  toast('✅ ' + items.length + ' 样食材已放入冰箱（保质 3 天）');
 }
 function printShop() {
   const list = document.querySelector('.shop-list');
@@ -4180,7 +4487,12 @@ function renderGrowth() {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-top:8px">
         <div style="background:var(--card3);border-radius:10px;padding:10px 4px;cursor:pointer" onclick="go('#/myplans')" title="跳到我的食谱单"><div style="font-size:20px;font-weight:700;color:var(--cinnabar)">${Object.keys(plans).length}</div><div style="font-size:11.5px;color:var(--ink-soft)">食谱单 →</div></div>
         <div style="background:var(--card3);border-radius:10px;padding:10px 4px;cursor:pointer" onclick="growthNotes()" title="看我的心得笔记"><div style="font-size:20px;font-weight:700;color:var(--cinnabar)">${reminderCount}</div><div style="font-size:11.5px;color:var(--ink-soft)">心得笔记</div></div>
-        <div style="background:var(--card3);border-radius:10px;padding:10px 4px;opacity:.75"><div style="font-size:20px;font-weight:700;color:var(--cinnabar)">${593}</div><div style="font-size:11.5px;color:var(--ink-soft)">菜谱总数</div></div>
+        <div style="background:var(--card3);border-radius:10px;padding:10px 4px;cursor:pointer" onclick="go('#/learn')"><div style="font-size:20px;font-weight:700;color:var(--cinnabar)">${Object.keys(DISHES).length}</div><div style="font-size:11.5px;color:var(--ink-soft)">全部菜谱 ›</div></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <span style="font-size:13px;background:var(--card3);border:1px solid var(--gold);color:#8a6d3b;border-radius:10px;padding:5px 12px">🔥 连续做饭 ${cookStreak()} 天</span>
+        ${cookStreak() >= 3 ? '<span style="font-size:12px;color:var(--green)">🏅 三日不辍</span>' : ''}${cookStreak() >= 7 ? '<span style="font-size:12px;color:var(--green)">🏅 一周食光</span>' : ''}${cookStreak() >= 14 ? '<span style="font-size:12px;color:var(--green)">🏅 半月坚持</span>' : ''}${cookStreak() >= 30 ? '<span style="font-size:12px;color:var(--green)">🏅 满月厨神</span>' : ''}
+        ${cookCalHtml()}
       </div>
     </div>
     <div class="plan-day"><div class="pd-title">🏅 成就徽章</div>
@@ -4433,6 +4745,7 @@ function rmPlanDish(name, meal, dish) {
   renderMyPlans();
 }
 function planShopGo2(name) {
+  document.querySelectorAll('.sc-item').forEach(function (el) { el.onclick = function () { this.classList.toggle('bought'); saveShopTick(this); }; });
   const plans = getPlans();
   const p = plans[name] || {};
   const dishes = [...(p.breakfast || []), ...(p.lunch || []), ...(p.dinner || []), ...(p.late || [])];
@@ -4579,8 +4892,29 @@ function speakNextStep(withPrefix) {
 }
 
 // ================= 路由 =================
+function tabbarHtml() {
+  const h = location.hash;
+  const top = (h.split('/')[1] || '').replace('#', '');
+  const t = function (label, icon, href, act) {
+    return '<div class="tab-item' + (act ? ' on' : '') + '" onclick="go(\'' + href + '\')"><div class="tab-ic">' + icon + '</div><div class="tab-lb">' + label + '</div></div>';
+  };
+  return '<nav class="tabbar">' +
+    t('首页', '🏠', '#/home', top === 'home' || top === '') +
+    t('菜谱', '📖', '#/learn', ['learn', 'dish', 'search'].indexOf(top) >= 0) +
+    t('计划', '📅', '#/plan', ['plan', 'myplans'].indexOf(top) >= 0) +
+    t('我的', '👤', '#/growth', ['growth', 'fav', 'firstaid', 'skills'].indexOf(top) >= 0) +
+    '</nav>';
+}
+function ensureTabbar() {
+  try {
+    const cur = document.querySelector('.tabbar');
+    const html = tabbarHtml();
+    if (cur) cur.outerHTML = html; else document.body.insertAdjacentHTML('beforeend', html);
+  } catch (e) {}
+}
 function render() {
   if (!location.hash.startsWith('#/dish/')) portionChosen = false;
+  ensureTabbar();
   const r = parseRoute();
   const top = r[0] || 'home';
   if (top !== 'dish') {
@@ -4612,7 +4946,7 @@ function render() {
       const name = decodeURIComponent(r[1] || '');
       if (DISHES[name]) return renderDish(name);
     }
-    if (top === 'fav') return renderFav();
+    if (top === 'fav') { if (r[1]) { try { localStorage.setItem('curFavFolder', decodeURIComponent(r[1])); } catch (e) {} } return renderFav(); }
     if (top === 'search') return renderSearch(decodeURIComponent(r[1] || ''));
     if (top === 'lucky') return renderLucky(r[1] === 'new' ? 'new' : '');
     if (top === 'firstaid') return renderFirstAid();
