@@ -413,7 +413,8 @@
   .tab-item.on .tab-lb { color: var(--cinnabar); font-weight: 700; }
   .tab-ic { font-size: 19px; line-height: 1.2; }
   .tab-lb { font-size: 10.5px; color: var(--ink-soft); margin-top: 1px; }
-  body { padding-bottom: 58px; }
+  body { padding-bottom: 58px; transition: background .3s ease, color .3s ease; }
+  .app, .plan-day, .vitem, .home-card, .lucky-card, .plan-card, .panel, .topbar, .tabbar { transition: background .3s ease, border-color .3s ease, color .3s ease; }
   .timer-bar { bottom: 66px !important; }
   .fade-in { animation: fadeIn 0.3s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -589,6 +590,8 @@
   .plan-opt.sel { border-color: var(--cinnabar); background: var(--card3); color: var(--cinnabar); font-weight: 700; }
   .plan-opt input { width: 52px; border: none; border-bottom: 1px solid var(--line2); background: transparent; font-size: 14px; text-align: center; font-family: inherit; }
   .plan-opt input:focus { outline: none; border-color: var(--cinnabar); }
+  .plan-go, .fav-btn, .start-btn, .bili-btn, .mb-btn, .search-btn, .fridge-btn, .portion-opt, .plan-opt, .speak-btn, .time-btn, .speak-next, .finish-early, .poster-btn, .fav-tab, .tab-item, .sc-item, .vitem, .home-card, .lucky-card, .plan-card, .dish-card, .pm-dish, .step, .pantry-chip { transition: transform .12s ease, opacity .15s ease; }
+  .plan-go:active, .fav-btn:active, .start-btn:active, .bili-btn:active, .mb-btn:active, .search-btn:active, .fridge-btn:active, .portion-opt:active, .plan-opt:active, .speak-btn:active, .time-btn:active, .speak-next:active, .fav-tab:active, .tab-item:active, .sc-item:active, .vitem:active, .home-card:active, .lucky-card:active, .plan-card:active, .dish-card:active, .pm-dish:active, .step:active, .pantry-chip:active { transform: scale(.965); }
   .plan-go { display: block; width: 100%; background: var(--cinnabar); color: #fff; border: none; border-radius: 12px; padding: 13px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 14px; }
   .plan-go:active { transform: scale(.98); }
   .plan-day { background: var(--card); border: 1px solid #efe4d2; border-radius: 14px; padding: 12px 14px; margin: 10px 2px; }
@@ -628,7 +631,13 @@
   .plan-sheet .ps-meal .pm2-dish .dish-ppl { font-size: 11px; color: var(--cinnabar); background: var(--card3); border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
   .plan-sheet .ps-shop { display: block; width: 100%; margin-top: 8px; background: var(--card3); color: var(--cinnabar); border: 1px solid #e8c9b8; border-radius: 10px; padding: 9px; font-size: 14px; font-weight: 700; cursor: pointer; }
   /* 加入食谱单弹窗 */
-  .modal-mask { position: fixed; inset: 0; background: rgba(61,50,40,.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .modal-mask { position: fixed; inset: 0; background: rgba(61,50,40,.45); z-index: 200; display: flex; align-items: center; justify-content: center; animation: maskIn .18s ease; }
+  @keyframes maskIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal-box { animation: boxIn .22s cubic-bezier(.34,1.4,.5,1); }
+  .panel .p-body { transition: opacity .18s ease; }
+  .panel.folded .p-body { display: none; }
+  .panel.folded .p-fold { }
+  @keyframes boxIn { from { opacity: 0; transform: scale(.9) translateY(10px); } to { opacity: 1; transform: none; } }
   .modal-box { background: var(--card); border: 1.5px solid var(--gold); border-radius: 14px; padding: 18px; width: 300px; max-width: 88vw; }
   .modal-box .mb-title { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 12px; }
   .modal-box .mb-plans { margin-bottom: 10px; }
@@ -906,7 +915,9 @@ function banner(seal, title, sub, wm) {
   </div>`;
 }
 function ul(arr) { return '<ul>' + (arr || []).map(x => `<li>${x}</li>`).join('') + '</ul>'; }
-function panel(title, inner) { return `<div class="panel"><h3>${title}</h3>${inner}</div>`; }
+function panel(title, inner, folded) {
+  return `<div class="panel${folded ? ' folded' : ''}"><h3 class="p-h3" onclick="this.parentNode.classList.toggle('folded')">${title}<span class="p-fold" style="font-size:11px;color:var(--muted);font-weight:400;margin-left:6px">${folded ? '展开 ▾' : '收起 ▴'}</span></h3><div class="p-body">${inner}</div></div>`;
+}
 function fmtAmt(v, u) {
   if (typeof v !== 'number') return v + (u || '');
   if (v === 0) return u || '';          // 适量/少许，不加 0
@@ -2584,6 +2595,16 @@ function renderHome() {
       <div class="hero-line"></div>
     </div>
     <div class="search-box home-search"><input class="search-input" placeholder="搜菜谱 · 技巧 · 补救" onkeydown="if(event.key==='Enter'){searchGo(this.value)}"><button class="search-btn" onclick="searchGo(this.previousElementSibling.value)">搜</button></div>
+    ${(function () { try { if (localStorage.getItem('introSeen') === '1') return ''; } catch (e) { return ''; }
+      return `<div class="intro-card" style="border:1.5px dashed var(--gold);border-radius:14px;background:var(--card);padding:12px 14px;margin:12px 0 2px">
+        <div style="font-size:13px;font-weight:700;color:var(--cinnabar);margin-bottom:6px">👋 第一次来？三步上手</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.9">
+          ① 点「今天吃什么」或搜一道想吃的菜<br>
+          ② 选人数 → 开始学习，做完一步点一下<br>
+          ③ 打完分自动打卡，还能生成海报晒朋友圈
+        </div>
+        <div style="text-align:right;margin-top:4px"><button class="bili-btn bili-sm" style="margin:0" onclick="try{localStorage.setItem('introSeen','1')}catch(e){};this.closest('.intro-card').remove()">好的，开做！→</button></div>
+      </div>`; })()}
     <div class="today-decision" onclick="go('#/lucky')" style="margin:14px 0 4px;border:1.5px solid var(--cinnabar);border-radius:14px;background:linear-gradient(135deg,var(--card3),var(--card));padding:13px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 3px 14px rgba(176,58,46,.12)">
       <div style="font-size:30px">🎲</div>
       <div style="flex:1">
@@ -3174,10 +3195,10 @@ function renderDishContent(name) {
       </div>
     </div>
     ${reminderHtml}
-    ${panel('🛒 买食材', `<table class="ing-table"><tr><th>食材</th><th>用量（${mul}人份）</th></tr>${ingRows}</table>`)}
-    ${panel('🔍 超市怎么挑', ul(d.shopping))}
-    ${panel('🧺 回家先处理', ul(d.prep))}
-    ${panel('💡 小贴士', `<p>${d.tips}</p>`)}
+    ${panel('🛒 买食材', `<table class="ing-table"><tr><th>食材</th><th>用量（${mul}人份）</th></tr>${ingRows}</table>`, true)}
+    ${panel('🔍 超市怎么挑', ul(d.shopping), true)}
+    ${panel('🧺 回家先处理', ul(d.prep), true)}
+    ${panel('💡 小贴士', `<p>${d.tips}</p>`, true)}
     <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
     ${(function () { const rl = relatedDishes(name); if (!rl.length) return ''; return panel('🥢 换着花样吃', `<div style="display:flex;gap:6px;flex-wrap:wrap">${rl.map(function (rn) { return `<span class="pm-dish" onclick="go('#/dish/${encodeURIComponent(rn)}')">${rn}</span>`; }).join('')}</div>`); })()}
     ${(function () { const sk = dishSkills(name); if (!sk.length) return ''; return `<div style="font-size:12px;color:var(--muted);margin:4px 0 8px;text-align:center">🔪 这道菜用到：${sk.map(function (k) { return `<a href="#/skills/${encodeURIComponent(k)}" style="color:var(--cinnabar)">${k}</a>`; }).join(' · ')}</div>`; })()}
@@ -3520,6 +3541,8 @@ function startTimer(sec, btn) {
     if (left <= 0) {
       stopOneTimer(id, true);
       if (voiceMode() !== 'off') speak('叮！时间到！');
+      try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+      toast('⏰ 时间到！');
     }
   }, 500);
 }
