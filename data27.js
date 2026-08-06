@@ -484,7 +484,7 @@ Object.assign(DISHES, {
     desc: '番茄炒出沙加水煮开，淋蛋花，最家常的汤。',
     ingredients: [
       { n: '番茄', per: 2, u: '个' }, { n: '鸡蛋', per: 2, u: '个' }, { n: '葱花', per: 0, u: '适量' },
-      { n: '盐', per: 0, u: '适量' }, { n: '香油', per: 0, u: '几滴' },
+      { n: '盐', per: 0, u: '适量' }, { n: '香油', per: 0, u: '适量' },
     ],
     shopping: [
       '番茄熟透的（出沙）',
@@ -659,7 +659,7 @@ Object.assign(DISHES, {
     desc: '绿豆煮烂打沙，冰镇加糖，夏天的解暑夜宵。',
     ingredients: [
       { n: '绿豆', per: 200, u: '克' }, { n: '冰糖', per: 40, u: '克' }, { n: '冰块', per: 0, u: '适量' },
-      { n: '牛奶', per: 0, u: '可选' },
+      { n: '牛奶', per: 0, u: '适量' },
     ],
     shopping: [
       '绿豆选新豆（出沙多）',
