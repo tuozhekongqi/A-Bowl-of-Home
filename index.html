@@ -2544,6 +2544,21 @@ function topBadge() {
 }
 function renderHome() {
   const favCount = store.fav.length;
+  let pantryCount = 0;
+  try { pantryCount = getPantry().length; } catch (e) {}
+  let weekCount = 0;
+  try {
+    const cl = JSON.parse(localStorage.getItem('cookLog') || '{}');
+    const now = new Date();
+    const dow = (now.getDay() + 6) % 7;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+    Object.keys(cl).forEach(function (k) {
+      const d = new Date(k);
+      if (d >= monday) weekCount += cl[k].length;
+    });
+  } catch (e) {}
+  const hh = new Date().getHours();
+  const periodTip = hh >= 5 && hh < 10 ? '现在是早餐时间' : hh < 15 ? '现在是午餐时间' : hh < 21 ? '现在是晚餐时间' : '深夜了，来点宵夜';
   const sealHero = `<div class="seal-hero">
     <svg viewBox="0 0 140 140">
       <rect x="5" y="5" width="130" height="130" rx="12" fill="none" stroke="#b8860b" stroke-width="2.5"/>
@@ -2569,6 +2584,19 @@ function renderHome() {
       <div class="hero-line"></div>
     </div>
     <div class="search-box home-search"><input class="search-input" placeholder="搜菜谱 · 技巧 · 补救" onkeydown="if(event.key==='Enter'){searchGo(this.value)}"><button class="search-btn" onclick="searchGo(this.previousElementSibling.value)">搜</button></div>
+    <div class="today-decision" onclick="go('#/lucky')" style="margin:14px 0 4px;border:1.5px solid var(--cinnabar);border-radius:14px;background:linear-gradient(135deg,var(--card3),var(--card));padding:13px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 3px 14px rgba(176,58,46,.12)">
+      <div style="font-size:30px">🎲</div>
+      <div style="flex:1">
+        <div style="font-size:16.5px;font-weight:700;color:var(--cinnabar)">今天吃什么？</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:1px">${periodTip} · 冰箱优先 · 避开忌口</div>
+      </div>
+      <div style="font-size:22px;color:var(--cinnabar)">›</div>
+    </div>
+    <div class="data-strip" style="display:flex;gap:8px;margin:8px 0 12px">
+      <span onclick="go('#/fridge')" style="flex:1;text-align:center;border:1px solid var(--line2);border-radius:10px;padding:7px 4px;font-size:12px;color:var(--ink-soft);background:var(--card);cursor:pointer">🧊 冰箱 ${pantryCount} 样</span>
+      <span onclick="go('#/growth')" style="flex:1;text-align:center;border:1px solid var(--line2);border-radius:10px;padding:7px 4px;font-size:12px;color:var(--ink-soft);background:var(--card);cursor:pointer">🔥 本周 ${weekCount} 道</span>
+      <span onclick="go('#/fav')" style="flex:1;text-align:center;border:1px solid var(--line2);border-radius:10px;padding:7px 4px;font-size:12px;color:var(--ink-soft);background:var(--card);cursor:pointer">⭐ 收藏 ${favCount}</span>
+    </div>
     <div class="home-cards">
       <div class="home-card" onclick="go('#/skills')">
         <div class="icon">${HOME_ICON_SKILL}</div>
@@ -2600,6 +2628,7 @@ function renderHome() {
     <div class="plan-card" onclick="go('#/growth')"><div class="pc-icon"><svg viewBox="0 0 48 48" width="40" height="40"><defs><linearGradient id="pcG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3ecd9"/><stop offset="1" stop-color="#e8dcc0"/></linearGradient></defs><path d="M8 40 h34 M14 40 v-14 M24 40 v-20 M34 40 v-26" stroke="#8a6d3b" stroke-width="3" stroke-linecap="round"/><path d="M14 26 l6 -6 l6 4 l8 -12" stroke="#2f7d4f" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="34" cy="14" r="4" fill="#f2c94c" stroke="#c9a227" stroke-width="1.2"/><path d="M34 12 v4 M32 14 h4" stroke="#8a5a2b" stroke-width="1.2"/></svg></div><div class="pc-name">厨神成长</div><div class="pc-sub">做菜记录，成就徽章</div></div>
   </div>
 <div class="fav-entry" onclick="go('#/fav')">♥ 我的收藏<span class="cnt">（${favCount}）</span></div>
+    <div style="text-align:center;font-size:11.5px;color:var(--muted);margin:2px 0 6px">− 今日厨房 · 数据已打通 −</div>
     <div class="home-foot">
       <div class="foot-deco">食 · 色 · 味 · 香</div>
       <div class="foot-deco">民以食为天</div>
@@ -2691,6 +2720,29 @@ function renderLearn() {
       <div class="vitem" onclick="go('#/learn/late')"><div class="vi">${catIcon('late')}</div><div class="vt"><div class="n">夜宵</div><div class="d">深夜的快乐</div></div><div class="arrow">›</div></div>
     </div>`;
 }
+function dishCardGrid(dishes) {
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + dishes.map(function (d) {
+    const photo = dishPhoto(d);
+    const tag = dishTag(d);
+    let cnt = 0;
+    try { cnt = JSON.parse(localStorage.getItem('counts') || '{}')[d] || 0; } catch (e) {}
+    return `<div class="dish-card" onclick="go('#/dish/${encodeURIComponent(d)}')" style="border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:var(--card);cursor:pointer;position:relative">
+      ${photo ? `<img src="${photo}" alt="${d}" loading="lazy" style="width:100%;height:110px;object-fit:cover;display:block">` : `<div style="width:100%;height:110px;background:var(--card3);display:flex;align-items:center;justify-content:center">${dishSvgIcon(d, 44)}</div>`}
+      ${cnt ? `<span style="position:absolute;top:6px;right:6px;background:rgba(176,58,46,.88);color:#fff;font-size:10.5px;border-radius:10px;padding:1px 7px">🔥${cnt}</span>` : ''}
+      <div style="padding:7px 9px 8px"><div style="font-size:13px;font-weight:700;color:var(--ink);line-height:1.3">${d}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${tag || '家常菜'}</div></div>
+    </div>`;
+  }).join('') + '</div>';
+}
+function viewToggle(cur, dishes, label) {
+  const mode = localStorage.getItem('viewMode') || 'list';
+  return `<div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0 4px">
+    <span style="font-size:13px;color:var(--ink-soft);font-weight:700">${label}</span>
+    <span style="display:flex;border:1px solid var(--line2);border-radius:14px;overflow:hidden;font-size:11.5px">
+      <span style="padding:3px 10px;cursor:pointer;${mode === 'list' ? 'background:var(--card3);color:var(--cinnabar);font-weight:700' : 'color:var(--muted)'}" onclick="var sy=window.scrollY;localStorage.setItem('viewMode','list');render();window.scrollTo(0,sy)">☰ 列表</span>
+      <span style="padding:3px 10px;cursor:pointer;${mode === 'grid' ? 'background:var(--card3);color:var(--cinnabar);font-weight:700' : 'color:var(--muted)'}" onclick="var sy=window.scrollY;localStorage.setItem('viewMode','grid');render();window.scrollTo(0,sy)">▦ 图卡</span>
+    </span>
+  </div>`;
+}
 function dishItem(d) {
   const dish = DISHES[d];
   return `<div class="vitem" onclick="go('#/dish/${encodeURIComponent(d)}')">
@@ -2723,7 +2775,8 @@ function renderBreakfastDishes(prov, city) {
   if (!ds) return renderBreakfastCities(prov);
   $app.innerHTML = topbar(['学着做菜', '早餐', prov, city], '#/learn/breakfast/' + encodeURIComponent(prov)) + `
     ${banner('味', esc(city) + '早餐', '挑一道想学的，跟着做起来', city.slice(0, 1))}
-    <div class="vlist">${ds.map(d => dishItem(d)).join('')}</div>`;
+    ${viewToggle('bf', ds, city || prov)}
+    ${localStorage.getItem('viewMode') === 'grid' ? dishCardGrid(ds) : '<div class="vlist">' + ds.map(d => dishItem(d)).join('') + '</div>'}`;
 }
 
 // ---- 午餐晚餐：按需求 ----
@@ -2740,7 +2793,8 @@ function renderMealDishes(needId) {
   if (!need) return renderMealNeeds();
   $app.innerHTML = topbar(['学着做菜', '午餐晚餐', need.name], '#/learn/lunch') + `
     ${banner(need.icon, need.name, MEAL_TAGS[needId] ? MEAL_TAGS[needId].sub : '', need.name.slice(0, 1))}
-    <div class="vlist">${need.dishes.map(d => dishItem(d)).join('')}</div>`;
+    ${viewToggle('lunch', need.dishes, need.name)}
+    ${localStorage.getItem('viewMode') === 'grid' ? dishCardGrid(need.dishes) : '<div class="vlist">' + need.dishes.map(d => dishItem(d)).join('') + '</div>'}`;
 }
 
 // ---- 夜宵：按氛围 ----
@@ -2757,7 +2811,8 @@ function renderLateDishes(moodId) {
   if (!mood) return renderLateMoods();
   $app.innerHTML = topbar(['学着做菜', '夜宵', mood.name], '#/learn/late') + `
     ${banner(mood.icon, mood.name, mood.sub || '', mood.name.slice(0, 1))}
-    <div class="vlist">${mood.dishes.map(d => dishItem(d)).join('')}</div>`;
+    ${viewToggle('late', mood.dishes, mood.name)}
+    ${localStorage.getItem('viewMode') === 'grid' ? dishCardGrid(mood.dishes) : '<div class="vlist">' + mood.dishes.map(d => dishItem(d)).join('') + '</div>'}`;
 }
 
 // ================= 菜谱：选分量 → 内容 =================
@@ -2823,6 +2878,89 @@ function cookStreak() {
     return streak;
   } catch (e) { return 0; }
 }
+function weeklyReport() {
+  try {
+    const cl = JSON.parse(localStorage.getItem('cookLog') || '{}');
+    const now = new Date();
+    const dow = (now.getDay() + 6) % 7;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday.getTime() + i * 86400000);
+      const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      days.push({ key: key, list: cl[key] || [], label: '一二三四五六日'[i] });
+    }
+    let all = [];
+    days.forEach(function (d) { all = all.concat(d.list); });
+    const uniq = all.filter(function (x, i) { return all.indexOf(x) === i; });
+    const newDishes = uniq.filter(function (n) { return !store.scores[n]; }).length;
+    const avg = (function () { let sum = 0, n = 0; uniq.forEach(function (x) { if (store.scores[x]) { sum += store.scores[x]; n++; } }); return n ? (sum / n).toFixed(1) : 0; })();
+    // 画布
+    const W = 900, H = 1200;
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    // 背景
+    ctx.fillStyle = '#faf6ef'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(184,134,11,.5)'; ctx.lineWidth = 2;
+    roundRectPath(ctx, 28, 28, W - 56, H - 56, 20); ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(61,50,40,.5)'; ctx.font = '24px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('厨 房 小 课 堂 · 周 报', W / 2, 86);
+    ctx.fillStyle = '#3d3228'; ctx.font = 'bold 58px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('本周做饭报告', W / 2, 158);
+    ctx.fillStyle = 'rgba(61,50,40,.5)'; ctx.font = '22px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText(now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日 · 第' + Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / 604800000) + '周', W / 2, 196);
+    // 三个大数字
+    const stats = [[all.length, '本周做了'], [uniq.length, '不同的菜'], [newDishes, '新学的菜']];
+    stats.forEach(function (st, i) {
+      const x = 150 + i * 300;
+      ctx.fillStyle = '#b03a2e'; ctx.font = 'bold 66px "Songti SC",serif';
+      ctx.fillText(st[0], x, 310);
+      ctx.fillStyle = 'rgba(61,50,40,.55)'; ctx.font = '22px "Kaiti SC","STKaiti","KaiTi",serif';
+      ctx.fillText(st[1], x, 348);
+    });
+    // 柱状图
+    ctx.fillStyle = 'rgba(61,50,40,.5)'; ctx.font = '20px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('每天做了几道', W / 2, 410);
+    const maxN = Math.max(1, Math.max.apply(null, days.map(function (d) { return d.list.length; })));
+    days.forEach(function (d, i) {
+      const x = 130 + i * 105;
+      const h = d.list.length / maxN * 180;
+      ctx.fillStyle = d.list.length ? 'rgba(176,58,46,.75)' : 'rgba(184,134,11,.15)';
+      ctx.fillRect(x, 640 - h, 46, h);
+      ctx.fillStyle = 'rgba(61,50,40,.55)'; ctx.font = '18px "Kaiti SC",serif';
+      ctx.fillText(d.label, x + 14, 668);
+      if (d.list.length) { ctx.fillStyle = 'rgba(61,50,40,.6)'; ctx.fillText(d.list.length, x + 14, 640 - h - 8); }
+    });
+    // 平均分 + 连续
+    ctx.fillStyle = 'rgba(61,50,40,.75)'; ctx.font = 'bold 30px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText(avg > 0 ? '平均 ' + avg + ' 分' : '本周还没打分', W / 2, 740);
+    ctx.fillStyle = 'rgba(184,134,11,.8)'; ctx.font = '26px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('🔥 连续做饭 ' + cookStreak() + ' 天', W / 2, 790);
+    // 本周菜单
+    ctx.fillStyle = 'rgba(61,50,40,.5)'; ctx.font = '20px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('本周菜单：' + uniq.slice(0, 8).join('、') + (uniq.length > 8 ? '…' : ''), W / 2, 850);
+    // 印章
+    ctx.fillStyle = 'rgba(176,58,46,.92)';
+    ctx.beginPath(); ctx.arc(W / 2, 950, 48, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fdf6ec'; ctx.font = 'bold 40px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('厨', W / 2, 964);
+    ctx.fillStyle = 'rgba(184,134,11,.8)'; ctx.font = '24px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('锅碗瓢盆，皆是热爱', W / 2, 1040);
+    ctx.fillStyle = 'rgba(61,50,40,.35)'; ctx.font = '20px "Kaiti SC","STKaiti","KaiTi",serif';
+    ctx.fillText('厨房小课堂 · 学做饭', W / 2, 1090);
+    const dataUrl = cv.toDataURL('image/png');
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask';
+    mask.innerHTML = '<div class="modal-box" style="max-width:420px"><div class="mb-title">📊 你的本周报告</div>' +
+      '<img src="' + dataUrl + '" style="width:100%;border-radius:10px;border:1px solid var(--line2)" alt="周报">' +
+      '<div style="font-size:12px;color:var(--muted);text-align:center;margin:8px 0 4px">长按保存或下载，发朋友圈吧</div>' +
+      '<div class="mb-actions"><button class="mb-btn" onclick="this.closest(\'.modal-mask\').remove()">关闭</button>' +
+      '<a class="mb-btn primary" style="text-decoration:none;text-align:center;display:inline-block" href="' + dataUrl + '" download="本周做饭报告.png">⬇ 下载</a></div></div>';
+    document.body.appendChild(mask);
+  } catch (e) { toast('生成失败：' + e.message); }
+}
 function cookCalHtml() {
   try {
     const cl = JSON.parse(localStorage.getItem('cookLog') || '{}');
@@ -2875,6 +3013,16 @@ function prefsOk(name) {
   if (dishAvoided(name, DISHES[name], p)) return false;
   return true;
 }
+function toast(msg) {
+  try {
+    let t = document.getElementById('appToast');
+    if (!t) { t = document.createElement('div'); t.id = 'appToast'; t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:99;background:rgba(61,50,40,.92);color:#fdf6ec;font-size:13px;padding:9px 18px;border-radius:20px;max-width:82vw;text-align:center;pointer-events:none;transition:opacity .3s'; document.body.appendChild(t); }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.style.opacity = '0'; }, 2200);
+  } catch (e) {}
+}
 function prefsModal() {
   const p = getPrefs();
   const box = document.createElement('div');
@@ -2893,7 +3041,6 @@ function savePrefsModal() {
   const avoid = (document.getElementById('prefAvoid') ? document.getElementById('prefAvoid').value : '').split(/[,，]/).map(function (x) { return x.trim(); }).filter(Boolean);
   savePrefs({ noSpicy: noSpicy, avoid: avoid });
   document.querySelectorAll('.modal-mask').forEach(function (m) { m.remove(); });
-  render();
   toast('✅ 偏好已保存，之后推荐都会避开');
 }
 function biliLink(name) {
@@ -2957,7 +3104,7 @@ function renderDishPortion(name) {
     ${dishPhoto(name) ? `<div class="dish-photo"><img src="${dishPhoto(name)}" alt="${esc(name)}" loading="lazy"></div>` : ''}
     <div class="dish-meta" style="display:flex;gap:8px;justify-content:center;margin:10px 0 2px;flex-wrap:wrap">
       <span style="font-size:12px;background:#fdf1ec;color:var(--cinnabar);border-radius:8px;padding:3px 10px">⏱ 预计 ${dishTimeText(dishTime(name))}</span>
-      ${missNow.length ? `<div style="margin-top:8px;font-size:12px;color:var(--cinnabar);background:var(--card3);border-radius:8px;padding:5px 10px">🧊 你冰箱缺：${missNow.join('、')}（点「买食材」加入购物清单）</div>` : `<div style="margin-top:8px;font-size:12px;color:var(--green);background:var(--card3);border-radius:8px;padding:5px 10px">🧊 冰箱食材基本齐了，直接开做！</div>`}
+      ${getPantry().length ? (missNow.length ? `<div style="margin-top:8px;font-size:12px;color:var(--cinnabar);background:var(--card3);border-radius:8px;padding:5px 10px">🧊 你冰箱缺：${missNow.join('、')}</div>` : `<div style="margin-top:8px;font-size:12px;color:var(--green);background:var(--card3);border-radius:8px;padding:5px 10px">🧊 冰箱食材基本齐了，直接开做！</div>`) : `<div style="margin-top:8px;font-size:12px;color:var(--muted);background:var(--card3);border-radius:8px;padding:5px 10px">🧊 在「冰箱配菜」录入食材后，这里会自动提醒你缺什么</div>`}
       <span style="font-size:12px;background:#f6f0e2;color:#8a6d3b;border-radius:8px;padding:3px 10px">🍳 ${d.steps ? d.steps.length : 0} 个步骤</span>
       <span style="font-size:12px;background:#f0f5ee;color:#4a7c4f;border-radius:8px;padding:3px 10px">🥢 ${d.ingredients ? d.ingredients.length : 0} 样食材</span>
       <span style="font-size:12px;background:#f3edf7;color:#7a5a9e;border-radius:8px;padding:3px 10px">🔥 做过 ${(function () { try { return (JSON.parse(localStorage.getItem('counts') || '{}')[name] || 0); } catch (e) { return 0; } })()} 次</span>
@@ -3092,11 +3239,9 @@ function roundRectPath(ctx, x, y, w, h, r) {
 var SHARE_MODE = false;
 function genShareCard(name) {
   currentDishName = name;
-  SHARE_MODE = true;
-  genPoster();
-  SHARE_MODE = false;
+  genPoster(true);
 }
-function genPoster() {
+function genPoster(shareMode) {
   var name = currentDishName;
   var d = DISHES[name];
   if (!d) return;
@@ -3144,16 +3289,16 @@ function genPoster() {
   var img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = function () {
-    drawPosterCore(ctx, cv, W, H, img, name, d, score, counts, note);
+    drawPosterCore(ctx, cv, W, H, img, name, d, score, counts, note, shareMode);
   };
   img.onerror = function () {
-    drawPosterCore(ctx, cv, W, H, null, name, d, score, counts, note);
+    drawPosterCore(ctx, cv, W, H, null, name, d, score, counts, note, shareMode);
   };
   var src = dishPhoto(name);
   if (src) { img.src = src; } else { img.onerror(); }
 }
 var POSTER_BGS = ['imgs/poster_bg_1.webp', 'imgs/poster_bg_2.webp', 'imgs/poster_bg_3.webp'];
-function drawPosterCore(ctx, cv, W, H, img, name, d, score, counts, note) {
+function drawPosterCore(ctx, cv, W, H, img, name, d, score, counts, note, shareMode) {
   // AI 高级底图（异步加载，用画中画方式：先画底图再叠文字）
   var bg = new Image();
   bg.crossOrigin = 'anonymous';
@@ -3166,13 +3311,14 @@ function drawPosterCore(ctx, cv, W, H, img, name, d, score, counts, note) {
       ctx.fillStyle = '#faf6ef';
       ctx.fillRect(0, 0, W, H);
     }
-    drawPosterText(ctx, cv, W, H, img, name, d, score, counts, note);
+    drawPosterText(ctx, cv, W, H, img, name, d, score, counts, note, shareMode);
   };
   bg.onload = bgDone;
   bg.onerror = bgDone;
   bg.src = POSTER_BGS[(counts || 0) % POSTER_BGS.length];
 }
-function drawPosterText(ctx, cv, W, H, img, name, d, score, counts, note) {
+function drawPosterText(ctx, cv, W, H, img, name, d, score, counts, note, shareMode) {
+  if (typeof shareMode === 'undefined') shareMode = SHARE_MODE;
   // 细金线框
   ctx.strokeStyle = 'rgba(184,134,11,.4)';
   ctx.lineWidth = 1.5;
@@ -3477,6 +3623,7 @@ function favFolderModal(enc) {
   document.body.appendChild(box);
 }
 function favToFolder(folder, name) {
+  try { localStorage.setItem('favChosen', '1'); } catch (e) {}
   const f = getFavFolders();
   if (!f[folder]) f[folder] = [];
   if (f[folder].indexOf('dish:' + name) < 0) f[folder].push('dish:' + name);
@@ -3484,8 +3631,9 @@ function favToFolder(folder, name) {
   saveFavFolders(f);
   localStorage.setItem('curFavFolder', folder);
   document.querySelectorAll('.modal-mask').forEach(function (m) { m.remove(); });
+  const btn = document.getElementById('favBtn');
+  if (btn) { btn.classList.add('faved'); btn.textContent = '♥ 已收藏'; }
   toast('⭐ 已收藏到「' + folder + '」');
-  render();
 }
 function favNewFolder(name) {
   const v = (document.getElementById('newFolderName') ? document.getElementById('newFolderName').value : '').trim();
@@ -3493,7 +3641,18 @@ function favNewFolder(name) {
   favToFolder(v, name);
 }
 function toggleFav(enc) {
-  favFolderModal(enc);
+  const name = decodeURIComponent(enc);
+  let chosen = false;
+  try { chosen = localStorage.getItem('favChosen') === '1'; } catch (e) {}
+  if (!chosen) { favFolderModal(enc); return; }
+  // 直接收藏到上次夹子
+  const folder = curFavFolder();
+  const f = getFavFolders();
+  if (!f[folder]) f[folder] = [];
+  if (f[folder].indexOf('dish:' + name) < 0) f[folder].push('dish:' + name);
+  saveFavFolders(f);
+  toast('⭐ 已收藏到「' + folder + '」');
+  render();
 }
 function renderFav() {
   const f = getFavFolders();
@@ -3501,7 +3660,7 @@ function renderFav() {
   const keys = Object.keys(f);
   const dishes = (f[cur] || []).filter(k => k.indexOf('dish:') === 0).map(k => k.slice(5));
   const tabs = keys.map(function (k) {
-    return `<span class="fav-tab${k === cur ? ' on' : ''}" onclick="go('#/fav/' + encodeURIComponent('${k}'))">📁 ${k} (${f[k].length})</span>`;
+    return `<span class="fav-tab${k === cur ? ' on' : ''}" onclick="go('#/fav/' + encodeURIComponent('${k}'))">📁 ${k} (${f[k].length})${k === '默认收藏' ? '' : '<span style="margin-left:5px;opacity:.65" onclick="event.stopPropagation();favDelFolder(\'' + k + '\')">✕</span>'}</span>`;
   }).join('');
   $app.innerHTML = topbar(['我的收藏'], '#/home') + `
     ${banner('藏', '我的收藏', '收藏的都是心头好', '藏')}
@@ -3513,6 +3672,15 @@ function favNewFolderBox() {
   box.className = 'modal-mask';
   box.innerHTML = '<div class="modal-box"><div class="mb-title">📁 新建收藏夹</div><input id="newFolderName" placeholder="夹子名，如：请客硬菜" style="width:100%;border:1px solid var(--line2);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit;background:var(--card);margin:4px 0 10px"><div class="mb-actions"><button class="mb-btn" onclick="this.closest(\'.modal-mask\').remove()">取消</button><button class="mb-btn primary" onclick="favNewFolderOnly()">创建</button></div></div>';
   document.body.appendChild(box);
+}
+function favDelFolder(k) {
+  const f = getFavFolders();
+  if (!f[k] || k === '默认收藏') return;
+  if (f[k].length) { toast('夹子不是空的，先清空再删'); return; }
+  delete f[k];
+  saveFavFolders(f);
+  if (curFavFolder() === k) localStorage.setItem('curFavFolder', '默认收藏');
+  render();
 }
 function favNewFolderOnly() {
   const v = (document.getElementById('newFolderName') ? document.getElementById('newFolderName').value : '').trim();
@@ -4213,8 +4381,8 @@ function renderPlan() {
         if (el) { document.querySelectorAll(sel + ' .plan-opt').forEach(function (o) { o.classList.remove('on'); }); el.classList.add('on'); }
       };
       if (cfg.mode) pick('#pMode', cfg.mode);
-      if (cfg.ppl) pick('#pPpl', cfg.ppl);
-      if (cfg.days) pick('#pDays', cfg.days);
+      if (cfg.ppl) { pick('#pPpl', cfg.ppl); if (cfg.ppl === 'cus' || cfg.ppl === '5') { const c = document.getElementById('pPplCus'); if (c) c.style.display = 'flex'; } }
+      if (cfg.days) { pick('#pDays', cfg.days); if (cfg.days === 'cus') { const c = document.getElementById('pDaysCus'); if (c) c.style.display = 'flex'; } }
     } catch (e2) {}
   }, 60);
   $app.className = 'app';
@@ -4490,7 +4658,8 @@ function renderGrowth() {
         <div style="background:var(--card3);border-radius:10px;padding:10px 4px;cursor:pointer" onclick="go('#/learn')"><div style="font-size:20px;font-weight:700;color:var(--cinnabar)">${Object.keys(DISHES).length}</div><div style="font-size:11.5px;color:var(--ink-soft)">全部菜谱 ›</div></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
-        <span style="font-size:13px;background:var(--card3);border:1px solid var(--gold);color:#8a6d3b;border-radius:10px;padding:5px 12px">🔥 连续做饭 ${cookStreak()} 天</span>
+        <span style="font-size:13px;background:var(--card3);border:1px solid var(--gold);color:#8a6d3b;border-radius:10px;padding:5px 12px;cursor:pointer" onclick="weeklyReport()" title="生成本周做饭报告图">🔥 连续做饭 ${cookStreak()} 天</span>
+        <button class="bili-btn bili-sm" style="margin:0" onclick="weeklyReport()">📊 生成本周报告</button>
         ${cookStreak() >= 3 ? '<span style="font-size:12px;color:var(--green)">🏅 三日不辍</span>' : ''}${cookStreak() >= 7 ? '<span style="font-size:12px;color:var(--green)">🏅 一周食光</span>' : ''}${cookStreak() >= 14 ? '<span style="font-size:12px;color:var(--green)">🏅 半月坚持</span>' : ''}${cookStreak() >= 30 ? '<span style="font-size:12px;color:var(--green)">🏅 满月厨神</span>' : ''}
         ${cookCalHtml()}
       </div>
@@ -4745,7 +4914,6 @@ function rmPlanDish(name, meal, dish) {
   renderMyPlans();
 }
 function planShopGo2(name) {
-  document.querySelectorAll('.sc-item').forEach(function (el) { el.onclick = function () { this.classList.toggle('bought'); saveShopTick(this); }; });
   const plans = getPlans();
   const p = plans[name] || {};
   const dishes = [...(p.breakfast || []), ...(p.lunch || []), ...(p.dinner || []), ...(p.late || [])];
@@ -4753,8 +4921,13 @@ function planShopGo2(name) {
   const el = document.querySelector(`#plansList .plan-sheet:nth-of-type(${Object.keys(getPlans()).indexOf(name) + 1}) #shopResult_${Object.keys(getPlans()).indexOf(name)}`);
   if (!el) return;
   el.innerHTML = `<div class="shop-list"><div class="sl-title">🛒 「${esc(name)}」采购清单（按各道菜选的份量 · 全部${dishes.length}道菜汇总）<span style="font-size:11px;color:#c9b8a0;font-weight:400"> · 点一下划掉已买的</span></div>
-    ${Object.entries(r.cats).map(([c, items]) => `<div class="shop-cat"><div class="sc-label">${c}</div><div class="sc-items">${items.map(it => `<span class="sc-item" onclick="this.classList.toggle('bought')">${it.name}</span>`).join('')}</div></div>`).join('')}
-    <button class="plan-go" style="margin-top:12px" onclick="printShop()">🖨️ 打印清单</button></div>`;
+    ${Object.entries(r.cats).map(([c, items]) => `<div class="shop-cat"><div class="sc-label">${c}</div><div class="sc-items">${items.map(it => `<span class="sc-item" onclick="this.classList.toggle('bought');saveShopTick(this)">${it.name}</span>`).join('')}</div></div>`).join('')}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="plan-go" style="flex:1;min-width:120px" onclick="shopWriteBack()">🛒 已购回写冰箱</button>
+      <button class="plan-go" style="flex:1;min-width:120px;background:var(--card3);color:var(--cinnabar);border-color:var(--line2)" onclick="copyShopText()">📤 复制清单</button>
+      <button class="plan-go" style="flex:1;min-width:120px;background:var(--card3);color:var(--ink-soft);border-color:var(--line2)" onclick="printShop()">🖨️ 打印</button>
+    </div></div>`;
+  restoreShopState();
 }
 // 菜谱页“加入食谱单”弹窗
 function addToPlanPrompt(dishName) { try { dishName = decodeURIComponent(dishName); } catch (e) {}
@@ -4900,7 +5073,7 @@ function tabbarHtml() {
   };
   return '<nav class="tabbar">' +
     t('首页', '🏠', '#/home', top === 'home' || top === '') +
-    t('菜谱', '📖', '#/learn', ['learn', 'dish', 'search'].indexOf(top) >= 0) +
+    t('菜谱', '📖', '#/learn', ['learn', 'dish', 'search', 'lucky'].indexOf(top) >= 0) +
     t('计划', '📅', '#/plan', ['plan', 'myplans'].indexOf(top) >= 0) +
     t('我的', '👤', '#/growth', ['growth', 'fav', 'firstaid', 'skills'].indexOf(top) >= 0) +
     '</nav>';
